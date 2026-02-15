@@ -17,6 +17,7 @@ type SocialService struct {
 	notifications *repository.NotificationRepository
 	users         *repository.UserRepository
 	posts         *repository.PostRepository
+	notifService  *NotificationService
 }
 
 func NewSocialService(
@@ -27,6 +28,7 @@ func NewSocialService(
 	notifications *repository.NotificationRepository,
 	users *repository.UserRepository,
 	posts *repository.PostRepository,
+	notifService *NotificationService,
 ) *SocialService {
 	return &SocialService{
 		follows:       follows,
@@ -36,6 +38,7 @@ func NewSocialService(
 		notifications: notifications,
 		users:         users,
 		posts:         posts,
+		notifService:  notifService,
 	}
 }
 
@@ -53,17 +56,33 @@ func (s *SocialService) Follow(ctx context.Context, followerID, followingUsernam
 		return err
 	}
 
-	// Only create notification for new follows (not re-follows)
 	if isNew {
 		go func() {
+			bgCtx := context.Background()
 			n := &model.Notification{
 				UserID:  target.ID,
 				Type:    "new_follower",
 				ActorID: &followerID,
 			}
-			if err := s.notifications.Create(context.Background(), n); err != nil {
+			if err := s.notifications.Create(bgCtx, n); err != nil {
 				log.Printf("failed to create follow notification: %v", err)
+				return
 			}
+
+			// Send push notification
+			actor, _ := s.users.GetByID(bgCtx, followerID)
+			actorName := "Someone"
+			if actor != nil {
+				actorName = actor.DisplayName
+				if actorName == "" {
+					actorName = actor.Username
+				}
+			}
+			s.notifService.SendPush(bgCtx, target.ID, PushPayload{
+				Title: "New Follower",
+				Body:  actorName + " started following you",
+				URL:   "/notifications",
+			})
 		}()
 	}
 
@@ -84,10 +103,10 @@ func (s *SocialService) Like(ctx context.Context, userID, postID string) error {
 		return err
 	}
 
-	// Only create notification for new likes (not re-likes)
 	if isNew {
 		go func() {
-			post, err := s.posts.GetByID(context.Background(), postID)
+			bgCtx := context.Background()
+			post, err := s.posts.GetByID(bgCtx, postID)
 			if err != nil || post == nil || post.AuthorID == userID {
 				return
 			}
@@ -97,9 +116,29 @@ func (s *SocialService) Like(ctx context.Context, userID, postID string) error {
 				ActorID: &userID,
 				PostID:  &postID,
 			}
-			if err := s.notifications.Create(context.Background(), n); err != nil {
+			if err := s.notifications.Create(bgCtx, n); err != nil {
 				log.Printf("failed to create like notification: %v", err)
+				return
 			}
+
+			// Send push notification
+			actor, _ := s.users.GetByID(bgCtx, userID)
+			actorName := "Someone"
+			if actor != nil {
+				actorName = actor.DisplayName
+				if actorName == "" {
+					actorName = actor.Username
+				}
+			}
+			title := post.Title
+			if len(title) > 50 {
+				title = title[:50] + "..."
+			}
+			s.notifService.SendPush(bgCtx, post.AuthorID, PushPayload{
+				Title: "New Like",
+				Body:  actorName + " liked your post \"" + title + "\"",
+				URL:   "/post/" + post.Slug,
+			})
 		}()
 	}
 
@@ -115,9 +154,9 @@ func (s *SocialService) CreateComment(ctx context.Context, comment *model.Commen
 		return err
 	}
 
-	// Create notification for post author
 	go func() {
-		post, err := s.posts.GetByID(context.Background(), comment.PostID)
+		bgCtx := context.Background()
+		post, err := s.posts.GetByID(bgCtx, comment.PostID)
 		if err != nil || post == nil || post.AuthorID == comment.AuthorID {
 			return
 		}
@@ -128,9 +167,29 @@ func (s *SocialService) CreateComment(ctx context.Context, comment *model.Commen
 			PostID:    &comment.PostID,
 			CommentID: &comment.ID,
 		}
-		if err := s.notifications.Create(context.Background(), n); err != nil {
+		if err := s.notifications.Create(bgCtx, n); err != nil {
 			log.Printf("failed to create comment notification: %v", err)
+			return
 		}
+
+		// Send push notification
+		actor, _ := s.users.GetByID(bgCtx, comment.AuthorID)
+		actorName := "Someone"
+		if actor != nil {
+			actorName = actor.DisplayName
+			if actorName == "" {
+				actorName = actor.Username
+			}
+		}
+		title := post.Title
+		if len(title) > 50 {
+			title = title[:50] + "..."
+		}
+		s.notifService.SendPush(bgCtx, post.AuthorID, PushPayload{
+			Title: "New Comment",
+			Body:  actorName + " commented on \"" + title + "\"",
+			URL:   "/post/" + post.Slug,
+		})
 	}()
 
 	return nil

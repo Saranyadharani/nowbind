@@ -60,6 +60,8 @@ func (s *MCPServer) handleResourcesRead(ctx context.Context, params json.RawMess
 	case strings.HasPrefix(req.URI, "nowbind://posts/"):
 		slug := strings.TrimPrefix(req.URI, "nowbind://posts/")
 		return s.readPost(ctx, slug)
+	case req.URI == "nowbind://authors":
+		return s.readAuthors(ctx)
 	case req.URI == "nowbind://tags":
 		return s.readTags(ctx)
 	case req.URI == "nowbind://feed":
@@ -118,6 +120,24 @@ func (s *MCPServer) readPost(ctx context.Context, slug string) (interface{}, *rp
 				"uri":      fmt.Sprintf("nowbind://posts/%s", slug),
 				"mimeType": "text/markdown",
 				"text":     b.String(),
+			},
+		},
+	}, nil
+}
+
+func (s *MCPServer) readAuthors(ctx context.Context) (interface{}, *rpcError) {
+	authors, err := s.users.ListAuthors(ctx)
+	if err != nil {
+		return nil, handleError(err)
+	}
+
+	data, _ := json.Marshal(authors)
+	return map[string]interface{}{
+		"contents": []map[string]interface{}{
+			{
+				"uri":      "nowbind://authors",
+				"mimeType": "application/json",
+				"text":     string(data),
 			},
 		},
 	}, nil

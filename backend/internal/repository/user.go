@@ -115,6 +115,31 @@ func (r *UserRepository) UpsertByOAuth(ctx context.Context, user *model.User) er
 	return nil
 }
 
+func (r *UserRepository) ListAuthors(ctx context.Context) ([]model.User, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT DISTINCT u.id, u.username, u.display_name, u.bio, u.avatar_url,
+		        u.follower_count, u.following_count
+		 FROM users u
+		 JOIN posts p ON p.author_id = u.id AND p.status = 'published'
+		 ORDER BY u.display_name ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []model.User
+	for rows.Next() {
+		var u model.User
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Bio, &u.AvatarURL,
+			&u.FollowerCount, &u.FollowingCount); err != nil {
+			return nil, err
+		}
+		applyGravatar(&u)
+		users = append(users, u)
+	}
+	return users, nil
+}
+
 func applyGravatar(user *model.User) {
 	if user.AvatarURL == "" && user.Email != "" {
 		user.AvatarURL = pkg.GravatarURL(user.Email, 200)

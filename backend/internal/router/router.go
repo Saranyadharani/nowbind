@@ -43,8 +43,8 @@ func New(pool *pgxpool.Pool, cfg *config.Config) *chi.Mux {
 	emailService := service.NewEmailService(cfg)
 	authService := service.NewAuthService(userRepo, sessionRepo, cfg.JWTSecret, emailService)
 	postService := service.NewPostService(postRepo, tagRepo)
-	socialService := service.NewSocialService(followRepo, likeRepo, bookmarkRepo, commentRepo, notifRepo, userRepo, postRepo)
-	notifService := service.NewNotificationService(notifRepo, pushRepo, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey)
+	notifService := service.NewNotificationService(notifRepo, pushRepo, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.FrontendURL)
+	socialService := service.NewSocialService(followRepo, likeRepo, bookmarkRepo, commentRepo, notifRepo, userRepo, postRepo, notifService)
 
 	// Handlers
 	healthH := handler.NewHealthHandler()

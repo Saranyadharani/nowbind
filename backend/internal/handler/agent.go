@@ -146,9 +146,35 @@ func (h *AgentHandler) Search(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AgentHandler) ListAuthors(w http.ResponseWriter, r *http.Request) {
-	// List authors who have published posts
-	// Simple implementation - list all users for now
-	writeJSON(w, http.StatusOK, []interface{}{})
+	authors, err := h.users.ListAuthors(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list authors")
+		return
+	}
+
+	type AgentAuthor struct {
+		Username    string `json:"username"`
+		DisplayName string `json:"display_name"`
+		Bio         string `json:"bio,omitempty"`
+		URL         string `json:"url"`
+		PostCount   int    `json:"post_count,omitempty"`
+	}
+
+	var result []AgentAuthor
+	for _, a := range authors {
+		name := a.DisplayName
+		if name == "" {
+			name = a.Username
+		}
+		result = append(result, AgentAuthor{
+			Username:    a.Username,
+			DisplayName: name,
+			Bio:         a.Bio,
+			URL:         fmt.Sprintf("%s/author/%s", h.frontendURL, a.Username),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (h *AgentHandler) ListTags(w http.ResponseWriter, r *http.Request) {

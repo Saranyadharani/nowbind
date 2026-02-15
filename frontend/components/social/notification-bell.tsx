@@ -1,6 +1,7 @@
 "use client";
 
 import { useNotifications } from "@/lib/hooks/use-notifications";
+import { usePushNotifications } from "@/lib/hooks/use-push-notifications";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,7 +10,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { NotificationItem } from "./notification-item";
-import { Bell } from "lucide-react";
+import { Bell, BellRing } from "lucide-react";
 import Link from "next/link";
 
 export function NotificationBell() {
@@ -20,6 +21,9 @@ export function NotificationBell() {
     markRead,
     markAllRead,
   } = useNotifications();
+
+  const { isSubscribed, isSupported, subscribe, unsubscribe } =
+    usePushNotifications();
 
   return (
     <DropdownMenu onOpenChange={(open) => open && fetchNotifications()}>
@@ -46,6 +50,29 @@ export function NotificationBell() {
             </button>
           )}
         </div>
+
+        {isSupported && (
+          <div className="border-b px-3 py-2">
+            {isSubscribed ? (
+              <button
+                onClick={unsubscribe}
+                className="flex w-full items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <BellRing className="h-3.5 w-3.5" />
+                Browser notifications on — click to disable
+              </button>
+            ) : (
+              <button
+                onClick={subscribe}
+                className="flex w-full items-center gap-2 text-xs text-primary hover:text-primary/80"
+              >
+                <Bell className="h-3.5 w-3.5" />
+                Enable browser notifications
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="max-h-80 overflow-y-auto">
           {notifications.length > 0 ? (
             notifications.slice(0, 10).map((n) => (
