@@ -79,14 +79,15 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state, _ := generateOAuthState()
+	secure := h.cfg.Environment == "production"
 	// Store state in a short-lived cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    state,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   300, // 5 minutes
 	})
 
@@ -141,13 +142,14 @@ func (h *AuthHandler) GitHubLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state, _ := generateOAuthState()
+	secure := h.cfg.Environment == "production"
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    state,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   300,
 	})
 
