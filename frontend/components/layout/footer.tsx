@@ -16,6 +16,20 @@ export function Footer() {
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <Link
+              href="/terms"
+              className="transition-colors hover:text-foreground"
+            >
+              Terms
+            </Link>
+            <Separator orientation="vertical" className="h-4" />
+            <Link
+              href="/privacy"
+              className="transition-colors hover:text-foreground"
+            >
+              Privacy
+            </Link>
+            <Separator orientation="vertical" className="h-4" />
+            <Link
               href="/feed/rss.xml"
               className="transition-colors hover:text-foreground"
             >

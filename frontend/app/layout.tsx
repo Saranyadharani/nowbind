@@ -63,12 +63,21 @@ export const metadata: Metadata = {
     title: "NowBind",
     description:
       "The open-source blogging platform where every post is both a beautiful article and a structured AI-agent feed.",
+    images: [
+      {
+        url: "/api/og?title=NowBind&type=default",
+        width: 1200,
+        height: 630,
+        alt: "NowBind",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "NowBind",
     description:
       "The open-source blogging platform where every post is both a beautiful article and a structured AI-agent feed.",
+    images: ["/api/og?title=NowBind&type=default"],
   },
   robots: {
     index: true,

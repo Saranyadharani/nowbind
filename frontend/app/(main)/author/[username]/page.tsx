@@ -1,109 +1,105 @@
-"use client";
-
-import { useState, useEffect, use } from "react";
-import Link from "next/link";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
-import { PostCard } from "@/components/post/post-card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { FollowButton } from "@/components/social/follow-button";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/hooks/use-auth";
-import type { Post, User, PaginatedResponse } from "@/lib/types";
+import { AuthorContent } from "./author-content";
+import { API_URL, SITE_URL } from "@/lib/constants";
+import type { User, Post, PaginatedResponse } from "@/lib/types";
+import type { Metadata } from "next";
 
 interface Props {
   params: Promise<{ username: string }>;
 }
 
-export default function AuthorPage({ params }: Props) {
-  const { username } = use(params);
-  const { user: me } = useAuth();
-  const [author, setAuthor] = useState<User | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+async function getAuthor(username: string): Promise<User | null> {
+  try {
+    const res = await fetch(`${API_URL}/users/${username}`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
 
-  useEffect(() => {
-    Promise.all([
-      api.get<User>(`/users/${username}`),
-      api.get<PaginatedResponse<Post>>(`/users/${username}/posts`),
-    ])
-      .then(([user, postsRes]) => {
-        setAuthor(user);
-        setPosts(postsRes.data || []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [username]);
+async function getAuthorPosts(username: string): Promise<Post[]> {
+  try {
+    const res = await fetch(`${API_URL}/users/${username}/posts`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const data: PaginatedResponse<Post> = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { username } = await params;
+  const author = await getAuthor(username);
+  if (!author) return { title: "Author Not Found" };
+
+  const name = author.display_name || author.username;
+  const description =
+    author.bio || `Read posts by ${name} on NowBind.`;
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(name)}&type=author`;
+
+  return {
+    title: name,
+    description,
+    openGraph: {
+      title: `${name} | NowBind`,
+      description,
+      url: `/author/${username}`,
+      siteName: "NowBind",
+      type: "profile",
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: name }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${name} | NowBind`,
+      description,
+      images: [ogImageUrl],
+    },
+    alternates: {
+      canonical: `/author/${username}`,
+    },
+  };
+}
+
+export default async function AuthorPage({ params }: Props) {
+  const { username } = await params;
+  const [author, posts] = await Promise.all([
+    getAuthor(username),
+    getAuthorPosts(username),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
       <main className="flex-1">
         <div className="mx-auto max-w-3xl px-4 py-8">
-          {loading ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Skeleton className="h-16 w-16 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-40" />
-                  <Skeleton className="h-4 w-60" />
-                </div>
-              </div>
-            </div>
-          ) : author ? (
-            <>
-              <div className="mb-8 flex items-start gap-4">
-                <Avatar className="h-16 w-16">
-                  {author.avatar_url && (
-                    <AvatarImage src={author.avatar_url} alt={author.display_name || author.username} />
-                  )}
-                  <AvatarFallback className="text-xl">
-                    {author.display_name?.[0]?.toUpperCase() ||
-                      author.username?.[0]?.toUpperCase() ||
-                      "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">
-                      {author.display_name || author.username}
-                    </h1>
-                    {me && me.id !== author.id && (
-                      <FollowButton username={author.username} initialFollowing={author.is_following} />
-                    )}
-                  </div>
-                  {author.bio && (
-                    <p className="mt-1 text-sm text-muted-foreground">{author.bio}</p>
-                  )}
-                  <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
-                    <Link href={`/author/${username}/followers`} className="hover:text-foreground">
-                      <span className="font-medium text-foreground">{author.follower_count}</span> followers
-                    </Link>
-                    <Link href={`/author/${username}/following`} className="hover:text-foreground">
-                      <span className="font-medium text-foreground">{author.following_count}</span> following
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
-              <h2 className="mb-4 text-lg font-semibold">Posts</h2>
-              {posts.length > 0 ? (
-                <div>
-                  {posts.map((post) => (
-                    <PostCard key={post.id} post={post} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  No published posts yet.
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-muted-foreground">Author not found.</p>
-          )}
+          <AuthorContent
+            username={username}
+            initialAuthor={author}
+            initialPosts={posts}
+          />
         </div>
+
+        {author && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Person",
+                name: author.display_name || author.username,
+                url: `${SITE_URL}/author/${username}`,
+                description: author.bio || undefined,
+              }),
+            }}
+          />
+        )}
       </main>
       <Footer />
     </div>

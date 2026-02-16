@@ -31,6 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await getPost(slug);
   if (!post) return { title: "Post Not Found" };
 
+  const authorName = post.author
+    ? post.author.display_name || post.author.username
+    : "";
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(post.title)}&author=${encodeURIComponent(authorName)}&type=post`;
+
   return {
     title: post.title,
     description: post.excerpt || post.ai_summary,
@@ -39,15 +44,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: post.title,
       description: post.excerpt,
       type: "article",
+      url: `/post/${slug}`,
+      siteName: "NowBind",
       publishedTime: post.published_at || undefined,
       modifiedTime: post.updated_at,
-      authors: post.author ? [post.author.display_name || post.author.username] : [],
+      authors: post.author ? [authorName] : [],
       tags: post.tags?.map((t) => t.name),
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: post.title }],
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description: post.excerpt,
+      images: [ogImageUrl],
+    },
+    alternates: {
+      canonical: `/post/${slug}`,
     },
   };
 }
@@ -85,6 +97,8 @@ export default async function PostPage({ params }: Props) {
               "@type": "Article",
               headline: post.title,
               description: post.excerpt,
+              url: `${SITE_URL}/post/${post.slug}`,
+              image: `${SITE_URL}/api/og?title=${encodeURIComponent(post.title)}&author=${encodeURIComponent(post.author?.display_name || post.author?.username || "")}&type=post`,
               datePublished: post.published_at,
               dateModified: post.updated_at,
               author: post.author
@@ -94,9 +108,16 @@ export default async function PostPage({ params }: Props) {
                     url: `${SITE_URL}/author/${post.author.username}`,
                   }
                 : undefined,
+              publisher: {
+                "@type": "Organization",
+                name: "NowBind",
+                url: SITE_URL,
+              },
               keywords: post.ai_keywords?.join(", "),
               wordCount: post.content?.split(/\s+/).length,
               timeRequired: `PT${post.reading_time}M`,
+              isAccessibleForFree: true,
+              inLanguage: "en",
             }),
           }}
         />
