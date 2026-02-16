@@ -66,7 +66,7 @@ func (h *AuthHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -128,7 +128,7 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = user
-	setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
 	http.Redirect(w, r, h.cfg.FrontendURL+"/dashboard", http.StatusTemporaryRedirect)
 }
 
@@ -184,7 +184,7 @@ func (h *AuthHandler) GitHubCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = user
-	setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
 	http.Redirect(w, r, h.cfg.FrontendURL+"/dashboard", http.StatusTemporaryRedirect)
 }
 
@@ -204,7 +204,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -232,13 +232,14 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, user)
 }
 
-func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, refreshExpiry time.Time) {
+func (h *AuthHandler) setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, refreshExpiry time.Time) {
+	secure := h.cfg.Environment == "production"
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // Set to true in production
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   900, // 15 minutes
 	})
@@ -247,7 +248,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, ref
 		Value:    refreshToken,
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(time.Until(refreshExpiry).Seconds()),
 	})
