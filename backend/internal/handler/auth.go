@@ -80,18 +80,18 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 
 	state, _ := generateOAuthState()
 	secure := h.cfg.Environment == "production"
-	// Store state in a short-lived cookie
+	// Store state in a short-lived cookie (on backend domain only, no Domain needed)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    state,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   300, // 5 minutes
 	})
 
-	redirectURI := fmt.Sprintf("%s/api/v1/auth/oauth/google/callback", h.cfg.FrontendURL)
+	redirectURI := fmt.Sprintf("%s/api/v1/auth/oauth/google/callback", h.backendOrigin(r))
 	authURL := fmt.Sprintf(
 		"https://accounts.google.com/o/oauth2/v2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=openid%%20email%%20profile&state=%s&access_type=offline&prompt=consent",
 		url.QueryEscape(h.cfg.GoogleClientID),
@@ -118,7 +118,7 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURI := fmt.Sprintf("%s/api/v1/auth/oauth/google/callback", h.cfg.FrontendURL)
+	redirectURI := fmt.Sprintf("%s/api/v1/auth/oauth/google/callback", h.backendOrigin(r))
 	user, session, accessToken, err := h.auth.HandleGoogleCallback(
 		r.Context(), code, h.cfg.GoogleClientID, h.cfg.GoogleClientSecret, redirectURI,
 	)
@@ -149,7 +149,7 @@ func (h *AuthHandler) GitHubLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   300,
 	})
 
@@ -201,7 +201,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	user, session, accessToken, err := h.auth.Refresh(r.Context(), refreshToken.Value)
 	if err != nil {
-		clearAuthCookies(w)
+		h.clearAuthCookies(w)
 		writeError(w, http.StatusUnauthorized, "invalid refresh token")
 		return
 	}
@@ -214,7 +214,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if refreshToken, err := r.Cookie("refresh_token"); err == nil {
 		h.auth.Logout(r.Context(), refreshToken.Value)
 	}
-	clearAuthCookies(w)
+	h.clearAuthCookies(w)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -236,37 +236,47 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, refreshExpiry time.Time) {
 	secure := h.cfg.Environment == "production"
+	sameSite := http.SameSiteLaxMode
+	if h.cfg.CookieDomain != "" {
+		// Cross-subdomain: need SameSite=None with Secure
+		sameSite = http.SameSiteNoneMode
+		secure = true
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
+		Domain:   h.cfg.CookieDomain,
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: sameSite,
 		MaxAge:   900, // 15 minutes
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
-		Path:     "/api/v1/auth",
+		Path:     "/",
+		Domain:   h.cfg.CookieDomain,
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: sameSite,
 		MaxAge:   int(time.Until(refreshExpiry).Seconds()),
 	})
 }
 
-func clearAuthCookies(w http.ResponseWriter) {
+func (h *AuthHandler) clearAuthCookies(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:   "access_token",
 		Value:  "",
 		Path:   "/",
+		Domain: h.cfg.CookieDomain,
 		MaxAge: -1,
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:   "refresh_token",
 		Value:  "",
-		Path:   "/api/v1/auth",
+		Path:   "/",
+		Domain: h.cfg.CookieDomain,
 		MaxAge: -1,
 	})
 }
@@ -277,4 +287,15 @@ func generateOAuthState() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// backendOrigin returns the public origin of this backend server (e.g. "https://nowbindb.niheshr.com")
+func (h *AuthHandler) backendOrigin(r *http.Request) string {
+	scheme := "http"
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
+	} else if h.cfg.Environment == "production" {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s", scheme, r.Host)
 }

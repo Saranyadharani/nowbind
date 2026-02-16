@@ -6,9 +6,15 @@ func CORS(frontendURL string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
-			if origin == frontendURL || origin == "" {
+
+			// Allow the configured frontend origin (cross-subdomain)
+			if origin == frontendURL {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else if origin == "" {
+				// Same-origin requests or server-to-server (no Origin header)
 				w.Header().Set("Access-Control-Allow-Origin", frontendURL)
 			}
+
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")

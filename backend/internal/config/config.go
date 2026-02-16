@@ -28,6 +28,9 @@ type Config struct {
 	GmailClientSecret string
 	GmailRefreshToken string
 
+	// Cookie domain for cross-subdomain sharing (e.g. ".niheshr.com")
+	CookieDomain string
+
 	// Web Push (VAPID)
 	VAPIDPublicKey  string
 	VAPIDPrivateKey string
@@ -41,6 +44,8 @@ func Load() (*Config, error) {
 		JWTSecret:   getEnv("JWT_SECRET", "dev-secret-change-me-in-production"),
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
 		Environment: getEnv("ENVIRONMENT", "development"),
+
+		CookieDomain: getEnv("COOKIE_DOMAIN", ""),
 
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),

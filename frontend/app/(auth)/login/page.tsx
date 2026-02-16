@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import { API_URL } from "@/lib/constants";
 import { Mail, ArrowRight, Loader2 } from "lucide-react";
 
 function GoogleIcon({ className }: { className?: string }) {
@@ -107,7 +108,7 @@ function LoginContent() {
                 className="w-full"
                 asChild
               >
-                <a href="/api/v1/auth/oauth/google">
+                <a href={`${API_URL}/auth/oauth/google`}>
                   <GoogleIcon className="mr-2 h-4 w-4" />
                   Continue with Google
                 </a>
@@ -118,7 +119,7 @@ function LoginContent() {
                 className="w-full"
                 asChild
               >
-                <a href="/api/v1/auth/oauth/github">
+                <a href={`${API_URL}/auth/oauth/github`}>
                   <GitHubIcon className="mr-2 h-4 w-4" />
                   Continue with GitHub
                 </a>
