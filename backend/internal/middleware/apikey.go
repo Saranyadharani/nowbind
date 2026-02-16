@@ -11,6 +11,18 @@ import (
 )
 
 const ApiKeyUserIDKey contextKey = "api_key_user_id"
+const apiKeyIDKey contextKey = "api_key_id"
+
+// statusWriter wraps http.ResponseWriter to capture the status code.
+type statusWriter struct {
+	http.ResponseWriter
+	code int
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	w.code = code
+	w.ResponseWriter.WriteHeader(code)
+}
 
 func ApiKeyAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -24,11 +36,11 @@ func ApiKeyAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 			hash := sha256.Sum256([]byte(key))
 			keyHash := hex.EncodeToString(hash[:])
 
-			var userID string
+			var userID, keyID string
 			err := pool.QueryRow(r.Context(),
-				`SELECT user_id FROM api_keys WHERE key_hash = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
+				`SELECT id, user_id FROM api_keys WHERE key_hash = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
 				keyHash,
-			).Scan(&userID)
+			).Scan(&keyID, &userID)
 
 			if err != nil {
 				http.Error(w, `{"error":"invalid api key"}`, http.StatusUnauthorized)
@@ -42,7 +54,24 @@ func ApiKeyAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 			}()
 
 			ctx := context.WithValue(r.Context(), ApiKeyUserIDKey, userID)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			ctx = context.WithValue(ctx, apiKeyIDKey, keyID)
+
+			// Wrap response writer to capture status code
+			sw := &statusWriter{ResponseWriter: w, code: http.StatusOK}
+			next.ServeHTTP(sw, r.WithContext(ctx))
+
+			// Log usage asynchronously
+			ip := r.RemoteAddr
+			if fwd := r.Header.Get("X-Real-Ip"); fwd != "" {
+				ip = fwd
+			}
+			go func() {
+				pool.Exec(context.Background(),
+					`INSERT INTO api_key_usage (api_key_id, endpoint, method, status_code, ip_address, user_agent)
+					 VALUES ($1, $2, $3, $4, $5::inet, $6)`,
+					keyID, r.URL.Path, r.Method, sw.code, ip, r.Header.Get("User-Agent"),
+				)
+			}()
 		})
 	}
 }

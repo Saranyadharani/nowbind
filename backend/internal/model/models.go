@@ -166,6 +166,28 @@ type NotificationPreferences struct {
 	NewLike     bool   `json:"new_like"`
 }
 
+// Tracking types
+
+type LoginLog struct {
+	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"`
+	IPAddress   string    `json:"ip_address"`
+	UserAgent   string    `json:"user_agent"`
+	LoginMethod string    `json:"login_method"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type ApiKeyUsage struct {
+	ID         string    `json:"id"`
+	ApiKeyID   string    `json:"api_key_id"`
+	Endpoint   string    `json:"endpoint"`
+	Method     string    `json:"method"`
+	StatusCode int       `json:"status_code"`
+	IPAddress  string    `json:"ip_address"`
+	UserAgent  string    `json:"user_agent"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 // Analytics types
 
 type StatsOverview struct {

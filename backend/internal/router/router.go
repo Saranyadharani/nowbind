@@ -38,6 +38,7 @@ func New(pool *pgxpool.Pool, cfg *config.Config) *chi.Mux {
 	notifRepo := repository.NewNotificationRepository(pool)
 	analyticsRepo := repository.NewAnalyticsRepository(pool)
 	pushRepo := repository.NewPushRepository(pool)
+	loginLogRepo := repository.NewLoginLogRepository(pool)
 
 	// Services
 	emailService := service.NewEmailService(cfg)
@@ -48,7 +49,7 @@ func New(pool *pgxpool.Pool, cfg *config.Config) *chi.Mux {
 
 	// Handlers
 	healthH := handler.NewHealthHandler()
-	authH := handler.NewAuthHandler(authService, cfg)
+	authH := handler.NewAuthHandler(authService, cfg, loginLogRepo)
 	socialH := handler.NewSocialHandler(socialService, followRepo, likeRepo, bookmarkRepo, commentRepo, postRepo, userRepo)
 	postH := handler.NewPostHandler(postService, postRepo, socialH)
 	userH := handler.NewUserHandler(userRepo, postRepo, followRepo, socialH)

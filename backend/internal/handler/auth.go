@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -12,16 +13,18 @@ import (
 
 	"github.com/nowbind/nowbind/internal/config"
 	"github.com/nowbind/nowbind/internal/middleware"
+	"github.com/nowbind/nowbind/internal/repository"
 	"github.com/nowbind/nowbind/internal/service"
 )
 
 type AuthHandler struct {
-	auth *service.AuthService
-	cfg  *config.Config
+	auth     *service.AuthService
+	cfg      *config.Config
+	loginLog *repository.LoginLogRepository
 }
 
-func NewAuthHandler(auth *service.AuthService, cfg *config.Config) *AuthHandler {
-	return &AuthHandler{auth: auth, cfg: cfg}
+func NewAuthHandler(auth *service.AuthService, cfg *config.Config, loginLog *repository.LoginLogRepository) *AuthHandler {
+	return &AuthHandler{auth: auth, cfg: cfg, loginLog: loginLog}
 }
 
 type magicLinkRequest struct {
@@ -67,6 +70,7 @@ func (h *AuthHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.logLogin(r, user.ID, "magic_link")
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -128,8 +132,8 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = user
 	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.logLogin(r, user.ID, "google")
 	http.Redirect(w, r, h.cfg.FrontendURL+"/dashboard", http.StatusTemporaryRedirect)
 }
 
@@ -185,8 +189,8 @@ func (h *AuthHandler) GitHubCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = user
 	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.logLogin(r, user.ID, "github")
 	http.Redirect(w, r, h.cfg.FrontendURL+"/dashboard", http.StatusTemporaryRedirect)
 }
 
@@ -207,6 +211,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.logLogin(r, user.ID, "refresh")
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -279,6 +284,15 @@ func (h *AuthHandler) clearAuthCookies(w http.ResponseWriter) {
 		Domain: h.cfg.CookieDomain,
 		MaxAge: -1,
 	})
+}
+
+func (h *AuthHandler) logLogin(r *http.Request, userID, method string) {
+	ip := r.RemoteAddr
+	if fwd := r.Header.Get("X-Real-Ip"); fwd != "" {
+		ip = fwd
+	}
+	ua := r.Header.Get("User-Agent")
+	go h.loginLog.Log(context.Background(), userID, ip, ua, method)
 }
 
 func generateOAuthState() (string, error) {
