@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { vscDarkPlus, ghcolors } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useTheme } from "next-themes";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +15,7 @@ interface CodeBlockProps {
 export function CodeBlock({ children, language = "text" }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -30,7 +32,7 @@ export function CodeBlock({ children, language = "text" }: CodeBlockProps) {
   };
 
   return (
-    <div className="group relative my-4 overflow-hidden rounded-lg border [&_pre]:!bg-transparent">
+    <div className="group relative my-4 overflow-hidden rounded-lg border [&_pre]:bg-transparent!">
       <div className="flex items-center justify-between border-b bg-muted/50 px-4 py-2">
         <span className="text-xs text-muted-foreground">{language}</span>
         <Button
@@ -49,11 +51,12 @@ export function CodeBlock({ children, language = "text" }: CodeBlockProps) {
       {mounted ? (
         <SyntaxHighlighter
           language={language}
-          style={vscDarkPlus}
+          style={resolvedTheme === "dark" ? vscDarkPlus : ghcolors}
           customStyle={{
             margin: 0,
             padding: "1rem",
             fontSize: "0.875rem",
+            border: "none"
           }}
         >
           {children}
