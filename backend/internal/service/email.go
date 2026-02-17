@@ -128,8 +128,7 @@ func (s *EmailService) SendMagicLinkEmail(toEmail, magicLinkURL string) error {
 	htmlBody := s.buildMagicLinkHTML(magicLinkURL)
 	msg := s.buildMIMEMessage(s.sender, toEmail, subject, htmlBody)
 
-	auth := newXOAuth2Auth(s.sender, accessToken)
-	err = smtp.SendMail("smtp.gmail.com:587", auth, s.sender, []string{toEmail}, msg)
+	err = s.sendViaGmailAPI(accessToken, msg)
 	if err != nil {
 		return fmt.Errorf("sending email via gmail: %w", err)
 	}
@@ -272,4 +271,32 @@ func (a *xoauth2Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 		return nil, fmt.Errorf("xoauth2 unexpected challenge: %s", fromServer)
 	}
 	return nil, nil
+}
+
+func (s *EmailService) sendViaGmailAPI(accessToken string, rawMessage []byte) error {
+	encoded := base64.URLEncoding.EncodeToString(rawMessage)
+	encoded = strings.TrimRight(encoded, "=")
+
+	payload := fmt.Sprintf(`{"raw":"%s"}`, encoded)
+
+	req, err := http.NewRequest("POST",
+		"https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+		strings.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("creating gmail api request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("gmail api request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("gmail api error %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
 }

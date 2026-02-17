@@ -2,11 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-  vscDarkPlus,
-  vs,
-} from "react-syntax-highlighter/dist/esm/styles/prism";
-import { useTheme } from "next-themes";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -18,7 +14,6 @@ interface CodeBlockProps {
 export function CodeBlock({ children, language = "text" }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -54,7 +49,7 @@ export function CodeBlock({ children, language = "text" }: CodeBlockProps) {
       {mounted ? (
         <SyntaxHighlighter
           language={language}
-          style={resolvedTheme === "dark" ? vscDarkPlus : vs}
+          style={vscDarkPlus}
           customStyle={{
             margin: 0,
             padding: "1rem",
