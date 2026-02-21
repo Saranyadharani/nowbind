@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import withSerwistInit from "@serwist/next";
+import { withSerwist } from "@serwist/turbopack";
 
 function normalizeBackendBaseUrl(value?: string): string | null {
   if (!value) return null;
@@ -14,12 +14,6 @@ const BACKEND_BASE_URL =
   // Default for local setup: derive backend base from public API URL.
   normalizeBackendBaseUrl(process.env.NEXT_PUBLIC_API_URL) ||
   "http://localhost:8080";
-
-const withSerwist = withSerwistInit({
-  swSrc: "app/sw.ts",
-  swDest: "public/sw.js",
-  disable: false,
-});
 
 const nextConfig: NextConfig = {
   output: "standalone",

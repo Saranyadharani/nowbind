@@ -38,6 +38,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUser]);
 
   const logout = useCallback(async () => {
+    // Unsubscribe push notifications before clearing the session so the
+    // subscription is removed from the server for this user. Without this,
+    // the browser's push endpoint stays linked to the old account and
+    // continues delivering notifications after logout (or to a new login).
+    try {
+      if ("serviceWorker" in navigator && "PushManager" in window) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          // Remove from server first (still authenticated at this point)
+          await api.post("/notifications/unsubscribe", { endpoint: sub.endpoint });
+          // Then revoke the browser-level subscription
+          await sub.unsubscribe();
+        }
+      }
+    } catch {
+      // Never block logout on push errors
+    }
+
     try {
       await api.post("/auth/logout");
     } catch {

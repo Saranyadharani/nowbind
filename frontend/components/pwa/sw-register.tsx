@@ -1,7 +1,7 @@
 "use client";
 
-import { SerwistProvider } from "@serwist/next/react";
+import { SerwistProvider } from "@serwist/turbopack/react";
 
 export function SwRegister({ children }: { children: React.ReactNode }) {
-  return <SerwistProvider swUrl="/sw.js">{children}</SerwistProvider>;
+  return <SerwistProvider swUrl="/serwist/sw.js">{children}</SerwistProvider>;
 }
