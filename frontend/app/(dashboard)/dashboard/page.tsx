@@ -496,27 +496,47 @@ export default function DashboardPage() {
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
-          <div className="flex items-center gap-2 rounded-xl border bg-background px-4 py-2.5 shadow-lg">
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{selectedIds.size} selected</span>
-            <div className="mx-2 h-5 w-px bg-border" />
-            <Button size="sm" variant="outline" onClick={handleBulkPublish} disabled={bulkActing}>
-              <Eye className="mr-1.5 h-3.5 w-3.5" />
-              Publish
+        <div className="fixed inset-x-0 bottom-0 z-50 sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
+          <div className="flex w-full max-w-full items-center gap-2 overflow-x-auto border-t bg-background px-3 py-2 shadow-lg sm:w-auto sm:rounded-xl sm:border sm:px-4 sm:py-2.5">
+            <CheckSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="shrink-0 text-sm font-medium">
+              {selectedIds.size} <span className="hidden sm:inline">selected</span>
+            </span>
+            <div className="mx-1 h-5 w-px shrink-0 bg-border sm:mx-2" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkPublish}
+              disabled={bulkActing}
+              className="flex-1 sm:flex-none"
+            >
+              <Eye className="mr-0 h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Publish</span>
             </Button>
-            <Button size="sm" variant="outline" onClick={handleBulkUnpublish} disabled={bulkActing}>
-              <EyeOff className="mr-1.5 h-3.5 w-3.5" />
-              Unpublish
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkUnpublish}
+              disabled={bulkActing}
+              className="flex-1 sm:flex-none"
+            >
+              <EyeOff className="mr-0 h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Unpublish</span>
             </Button>
-            <Button size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)} disabled={bulkActing}>
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-              Delete
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setBulkDeleteOpen(true)}
+              disabled={bulkActing}
+              className="flex-1 sm:flex-none"
+            >
+              <Trash2 className="mr-0 h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Delete</span>
             </Button>
             <button
               type="button"
               onClick={() => setSelectedIds(new Set())}
-              className="ml-1 text-muted-foreground hover:text-foreground"
+              className="ml-1 shrink-0 text-muted-foreground hover:text-foreground"
               aria-label="Clear selected posts"
             >
               <X className="h-4 w-4" />
