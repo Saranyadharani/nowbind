@@ -66,11 +66,34 @@ export function BlockEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<any>(null);
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
+  const contentAppliedRef = useRef(false);
 
   // URL prompt modal state
   const [urlPrompt, setUrlPrompt] = useState<UrlPromptType | null>(null);
   const [urlValue, setUrlValue] = useState("");
   const [wordCount, setWordCount] = useState(0);
+
+  // If initialContent arrives after the editor is already created (e.g. async
+  // fetch completing after mount), push it into the editor imperatively.
+  // TipTap only reads the `content` option during creation, so prop changes
+  // after that are silently ignored by EditorProvider.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !initialContent || contentAppliedRef.current) return;
+    // Only apply if the editor is currently empty (no user edits yet)
+    const currentContent = editor.getJSON();
+    const isEmpty =
+      !currentContent.content ||
+      currentContent.content.length === 0 ||
+      (currentContent.content.length === 1 &&
+        currentContent.content[0].type === "paragraph" &&
+        (!currentContent.content[0].content ||
+          currentContent.content[0].content.length === 0));
+    if (isEmpty) {
+      editor.commands.setContent(initialContent);
+      contentAppliedRef.current = true;
+    }
+  }, [initialContent, editorInstance]);
 
   const handleImageUpload = useCallback(() => {
     fileInputRef.current?.click();
@@ -165,6 +188,11 @@ export function BlockEditor({
           onCreate={({ editor }) => {
             editorRef.current = editor;
             setEditorInstance(editor as unknown as Editor);
+
+            // Mark content as applied if editor was created with initial content
+            if (initialContent) {
+              contentAppliedRef.current = true;
+            }
 
             // Listen for image insert events
             const insertHandler = (e: Event) => {

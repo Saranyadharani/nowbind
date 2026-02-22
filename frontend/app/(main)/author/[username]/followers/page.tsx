@@ -82,7 +82,17 @@ export default function FollowersPage({ params }: Props) {
                       </div>
                     </Link>
                     {me && me.id !== u.id && (
-                      <FollowButton username={u.username} initialFollowing={u.is_following} />
+                      <FollowButton
+                        username={u.username}
+                        initialFollowing={u.is_following}
+                        onToggle={(nowFollowing) =>
+                          setUsers((prev) =>
+                            prev.map((x) =>
+                              x.id === u.id ? { ...x, is_following: nowFollowing } : x
+                            )
+                          )
+                        }
+                      />
                     )}
                   </div>
                 ))}

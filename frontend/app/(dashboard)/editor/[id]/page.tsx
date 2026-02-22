@@ -91,9 +91,9 @@ export default function EditPostPage({ params }: Props) {
             // Fallback: empty editor
           }
         }
+        setLoading(false);
       })
-      .catch(() => router.push("/dashboard"))
-      .finally(() => setLoading(false));
+      .catch(() => router.push("/dashboard"));
   }, [id, router]);
 
   const performSave = useCallback(async () => {
@@ -158,6 +158,7 @@ export default function EditPostPage({ params }: Props) {
         feature_image: featureImage,
       });
       setPost(updated);
+      setSlug(updated.slug || slug);
       markClean();
       toast.success("Post saved");
     } catch {
