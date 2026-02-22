@@ -46,7 +46,10 @@ function buildSuggestedAuthors(posts: Post[], currentUserID?: string): User[] {
 function SearchContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const queryParam = useMemo(() => (searchParams.get("q") || "").trim(), [searchParams]);
+  const queryParam = useMemo(
+    () => (searchParams.get("q") || "").trim().toLowerCase(),
+    [searchParams]
+  );
 
   const [query, setQuery] = useState(queryParam);
   const [debouncedQuery, setDebouncedQuery] = useState(queryParam);
@@ -213,7 +216,7 @@ function SearchContent() {
         <Input
           placeholder="Type to search posts and authors..."
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => setQuery(e.target.value.toLowerCase())}
           className="pl-10 pr-10"
           autoFocus
         />

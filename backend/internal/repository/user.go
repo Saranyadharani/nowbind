@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -195,16 +196,15 @@ func (r *UserRepository) SearchAuthors(ctx context.Context, query string, page, 
 		perPage = 20
 	}
 
-	pattern := "%" + query + "%"
+	normalizedQuery := strings.ToLower(strings.TrimSpace(query))
+	pattern := "%" + normalizedQuery + "%"
 
 	var total int
 	if err := r.pool.QueryRow(ctx,
-		`SELECT COUNT(DISTINCT u.id)
+		`SELECT COUNT(*)
 		 FROM users u
-		 JOIN posts p ON p.author_id = u.id AND p.status = 'published'
-		 WHERE u.username ILIKE $1
-		    OR COALESCE(u.display_name, '') ILIKE $1
-		    OR COALESCE(u.bio, '') ILIKE $1`,
+		 WHERE LOWER(u.username) LIKE $1
+		    OR LOWER(COALESCE(u.display_name, '')) LIKE $1`,
 		pattern,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("counting author search results: %w", err)
@@ -212,16 +212,24 @@ func (r *UserRepository) SearchAuthors(ctx context.Context, query string, page, 
 
 	offset := (page - 1) * perPage
 	rows, err := r.pool.Query(ctx,
-		`SELECT DISTINCT u.id, u.username, u.display_name, u.bio, u.avatar_url,
+		`SELECT u.id, u.username, u.display_name, u.bio, u.avatar_url,
 		        u.follower_count, u.following_count
 		 FROM users u
-		 JOIN posts p ON p.author_id = u.id AND p.status = 'published'
-		 WHERE u.username ILIKE $1
-		    OR COALESCE(u.display_name, '') ILIKE $1
-		    OR COALESCE(u.bio, '') ILIKE $1
-		 ORDER BY u.follower_count DESC, u.display_name ASC, u.username ASC
+		 WHERE LOWER(u.username) LIKE $1
+		    OR LOWER(COALESCE(u.display_name, '')) LIKE $1
+		 ORDER BY
+		   CASE
+		     WHEN LOWER(u.username) = $4 THEN 0
+		     WHEN LOWER(COALESCE(u.display_name, '')) = $4 THEN 1
+		     WHEN LOWER(u.username) LIKE $5 THEN 2
+		     WHEN LOWER(COALESCE(u.display_name, '')) LIKE $5 THEN 3
+		     ELSE 4
+		   END,
+		   u.follower_count DESC,
+		   u.display_name ASC,
+		   u.username ASC
 		 LIMIT $2 OFFSET $3`,
-		pattern, perPage, offset,
+		pattern, perPage, offset, normalizedQuery, normalizedQuery+"%",
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("searching authors: %w", err)

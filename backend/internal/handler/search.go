@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/nowbind/nowbind/internal/middleware"
 	"github.com/nowbind/nowbind/internal/repository"
@@ -30,7 +31,7 @@ func NewSearchHandler(
 }
 
 func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	if query == "" {
 		writeError(w, http.StatusBadRequest, "query parameter 'q' is required")
 		return
@@ -61,7 +62,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SearchHandler) SearchAuthors(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	if query == "" {
 		writeError(w, http.StatusBadRequest, "query parameter 'q' is required")
 		return
@@ -103,7 +104,7 @@ func (h *SearchHandler) SearchAuthors(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SearchHandler) Suggest(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	if query == "" {
 		writeJSON(w, http.StatusOK, []interface{}{})
 		return
