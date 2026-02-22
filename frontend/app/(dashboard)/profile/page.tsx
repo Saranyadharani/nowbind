@@ -94,7 +94,7 @@ export default function ProfilePage() {
     if (!user) return;
     api
       .get<Post[]>("/posts/trending", { limit: "20" })
-      .then((trendingPosts) => {
+      .then(async (trendingPosts) => {
         const posts = trendingPosts || [];
         const seen = new Set<string>();
         const authors: User[] = [];
@@ -105,7 +105,15 @@ export default function ProfilePage() {
           }
           if (authors.length >= 10) break;
         }
-        setSuggested(authors);
+        // Re-fetch each author with auth to get correct is_following state
+        const enriched = await Promise.all(
+          authors.map((a) =>
+            api.getSilent<User>(`/users/${a.username}`)
+              .then((fresh) => (fresh ? { ...a, is_following: fresh.is_following } : a))
+              .catch(() => a)
+          )
+        );
+        setSuggested(enriched);
       })
       .catch(() => {});
   }, [user]);
@@ -296,7 +304,18 @@ export default function ProfilePage() {
                 <>
                   <div className="space-y-2">
                     {followers.map((u) => (
-                      <UserRow key={u.id} user={u} me={user} />
+                      <UserRow
+                        key={u.id}
+                        user={u}
+                        me={user}
+                        onFollowToggle={(nowFollowing) =>
+                          setProfile((prev) =>
+                            prev
+                              ? { ...prev, following_count: prev.following_count + (nowFollowing ? 1 : -1) }
+                              : prev
+                          )
+                        }
+                      />
                     ))}
                   </div>
                   {followersTotalPages > 1 && (
@@ -330,7 +349,18 @@ export default function ProfilePage() {
                 <>
                   <div className="space-y-2">
                     {following.map((u) => (
-                      <UserRow key={u.id} user={u} me={user} />
+                      <UserRow
+                        key={u.id}
+                        user={u}
+                        me={user}
+                        onFollowToggle={(nowFollowing) =>
+                          setProfile((prev) =>
+                            prev
+                              ? { ...prev, following_count: prev.following_count + (nowFollowing ? 1 : -1) }
+                              : prev
+                          )
+                        }
+                      />
                     ))}
                   </div>
                   {followingTotalPages > 1 && (
@@ -353,7 +383,19 @@ export default function ProfilePage() {
               ) : (
                 <div className="space-y-2">
                   {suggested.map((u) => (
-                    <UserRow key={u.id} user={u} me={user} showFollow />
+                    <UserRow
+                      key={u.id}
+                      user={u}
+                      me={user}
+                      showFollow
+                      onFollowToggle={(nowFollowing) =>
+                        setProfile((prev) =>
+                          prev
+                            ? { ...prev, following_count: prev.following_count + (nowFollowing ? 1 : -1) }
+                            : prev
+                        )
+                      }
+                    />
                   ))}
                 </div>
               )}
@@ -370,10 +412,12 @@ function UserRow({
   user,
   me,
   showFollow = true,
+  onFollowToggle,
 }: {
   user: User;
   me: User;
   showFollow?: boolean;
+  onFollowToggle?: (nowFollowing: boolean) => void;
 }) {
   return (
     <div className="flex items-center justify-between rounded-lg border p-3">
@@ -400,6 +444,7 @@ function UserRow({
         <FollowButton
           username={user.username}
           initialFollowing={user.is_following}
+          onToggle={onFollowToggle}
         />
       )}
     </div>

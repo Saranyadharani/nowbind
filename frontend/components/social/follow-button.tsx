@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { useFollow } from "@/lib/hooks/use-social";
 import { UserPlus, UserCheck } from "lucide-react";
-import { useEffect } from "react";
 
 interface FollowButtonProps {
   username: string;
@@ -12,11 +11,7 @@ interface FollowButtonProps {
 }
 
 export function FollowButton({ username, initialFollowing = false, onToggle }: FollowButtonProps) {
-  const { isFollowing, toggle, loading, setIsFollowing } = useFollow(initialFollowing);
-
-  useEffect(() => {
-    setIsFollowing(initialFollowing);
-  }, [initialFollowing, setIsFollowing]);
+  const { isFollowing, toggle, loading } = useFollow(initialFollowing);
 
   return (
     <Button

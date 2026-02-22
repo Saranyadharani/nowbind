@@ -41,6 +41,20 @@ export function AuthorContent({
       .finally(() => setLoading(false));
   }, [username, initialAuthor]);
 
+  // Re-fetch with auth cookies for correct is_following state
+  useEffect(() => {
+    if (!me) return;
+    api.getSilent<User>(`/users/${username}`)
+      .then((freshAuthor) => {
+        if (freshAuthor) {
+          setAuthor((prev) =>
+            prev ? { ...prev, is_following: freshAuthor.is_following, follower_count: freshAuthor.follower_count } : prev
+          );
+        }
+      })
+      .catch(() => {});
+  }, [me, username]);
+
   if (loading) {
     return (
       <div className="space-y-4">

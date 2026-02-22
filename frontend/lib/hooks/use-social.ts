@@ -8,6 +8,10 @@ export function useFollow(initialFollowing: boolean = false) {
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    setIsFollowing(initialFollowing);
+  }, [initialFollowing]);
+
   const toggle = useCallback(
     async (username: string) => {
       setLoading(true);
