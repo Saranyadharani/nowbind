@@ -9,7 +9,7 @@ import rehypeSanitize from "rehype-sanitize";
 import { CodeBlock } from "@/components/post/code-block";
 import type { Components } from "react-markdown";
 import { generateHTML, Extension } from "@tiptap/core";
-import { StarterKit, TiptapImage, TextStyle, CodeBlockLowlight, HorizontalRule, Youtube } from "novel";
+import { StarterKit, TiptapImage, TiptapLink, TiptapUnderline, TextStyle, CodeBlockLowlight, HorizontalRule, Youtube } from "novel";
 import { common, createLowlight } from "lowlight";
 import { Callout } from "@/components/editor/extensions/callout";
 import { Bookmark } from "@/components/editor/extensions/bookmark";
@@ -87,6 +87,8 @@ const YoutubeResizeRender = Extension.create({
 const tiptapExtensions = [
   StarterKit.configure({ codeBlock: false, horizontalRule: false }),
   TiptapImage,
+  TiptapLink,
+  TiptapUnderline,
   TextStyle,
   FontSizeRender,
   ImageAlignRender,
@@ -116,11 +118,23 @@ interface PostContentProps {
 
 export function PostContent({ content, contentJSON, contentFormat }: PostContentProps) {
   const [mounted, setMounted] = useState(false);
+  const [tiptapHTML, setTiptapHTML] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // TipTap JSON rendering — runs client-only because generateHTML uses the browser DOM
+  useEffect(() => {
+    if (contentFormat !== "tiptap" || !contentJSON) return;
+    try {
+      const json = JSON.parse(contentJSON);
+      setTiptapHTML(generateHTML(json, tiptapExtensions));
+    } catch {
+      // generateHTML failed; fallback to markdown below
+    }
+  }, [contentJSON, contentFormat]);
 
   // Add IDs to headings for TOC anchor linking
   const addHeadingIds = useCallback((el: HTMLDivElement | null) => {
@@ -140,26 +154,8 @@ export function PostContent({ content, contentJSON, contentFormat }: PostContent
     });
   }, []);
 
-  // TipTap JSON rendering
-  const tiptapHTML = useMemo(() => {
-    if (contentFormat === "tiptap" && contentJSON) {
-      try {
-        const json = JSON.parse(contentJSON);
-        return generateHTML(json, tiptapExtensions);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }, [contentJSON, contentFormat]);
-
   const renderedTiptapHTML = useMemo(() => {
-    if (!tiptapHTML) return null;
-
-    // Keep server HTML and initial client HTML identical to avoid hydration mismatches.
-    if (!mounted || typeof window === "undefined") {
-      return tiptapHTML;
-    }
+    if (!tiptapHTML || !mounted || typeof window === "undefined") return null;
 
     const purify = createDOMPurify(window);
     const clean = purify.sanitize(tiptapHTML, {

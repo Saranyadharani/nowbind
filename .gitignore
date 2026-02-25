@@ -46,3 +46,6 @@ debug/
 
 # Docker
 docker-compose.override.yml
+
+# Nginx 50x.hmtl
+50x.html
