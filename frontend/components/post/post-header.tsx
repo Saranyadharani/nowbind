@@ -46,7 +46,7 @@ export function PostHeader({ post }: PostHeaderProps) {
           setAuthorFollowing(author.is_following);
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load author data:", err));
   }, [post.slug, post.author, user, authLoading]);
   const publishDate = post.published_at
     ? new Date(post.published_at).toLocaleDateString("en-US", {

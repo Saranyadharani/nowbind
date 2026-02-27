@@ -33,7 +33,7 @@ export default function FeedPage() {
         setPosts(res.data || []);
         setTotalPages(res.total_pages);
       })
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load feed:", err))
       .finally(() => setLoading(false));
   }, [page, user, authLoading]);
 

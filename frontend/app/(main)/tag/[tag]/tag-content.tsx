@@ -41,7 +41,7 @@ export function TagContent({
         setPosts(res.data || []);
         setTotalPages(res.total_pages);
       })
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load tag posts:", err))
       .finally(() => setLoading(false));
   }, [tagSlug, page]);
 

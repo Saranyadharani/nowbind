@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/nowbind/nowbind/internal/middleware"
@@ -47,7 +48,8 @@ func (h *ImportHandler) MediumImport(w http.ResponseWriter, r *http.Request) {
 	reader := bytes.NewReader(data)
 	result, err := h.importService.ImportMediumZip(r.Context(), userID, reader, int64(len(data)))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		log.Printf("import: %v", err)
+		writeError(w, http.StatusBadRequest, "failed to import archive")
 		return
 	}
 

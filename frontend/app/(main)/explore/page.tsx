@@ -352,7 +352,7 @@ export default function ExplorePage() {
         .then((r) => r.data || [])
         .catch(() => [] as Post[]),
       api.get<Post[]>("/posts/trending", { limit: "6" }).catch(() => [] as Post[]),
-      api.get<Tag[]>("/tags").catch(() => [] as Tag[]),
+      api.get<{ data: Tag[] }>("/tags").then((r) => r.data || []).catch(() => [] as Tag[]),
     ])
       .then(([featuredRes, trendingRes, tagsRes]) => {
         setFeatured(featuredRes);
@@ -374,7 +374,7 @@ export default function ExplorePage() {
         setLatestPosts(res.data || []);
         setLatestTotalPages(res.total_pages);
       })
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load latest posts:", err))
       .finally(() => setLatestLoading(false));
   }, [latestPage]);
 

@@ -91,7 +91,8 @@ function SearchContent() {
     Promise.all([
       api.get<Post[]>("/posts/trending", { limit: "8" }).catch(() => [] as Post[]),
       api
-        .get<Tag[]>("/tags", { page: "1", per_page: "14" })
+        .get<{ data: Tag[] }>("/tags", { page: "1", per_page: "14" })
+        .then((res) => res.data || [])
         .catch(() => [] as Tag[]),
     ])
       .then(async ([trendingRes, tagsRes]) => {
@@ -154,7 +155,7 @@ function SearchContent() {
     setSearchFailed(false);
 
     const postsReq = api
-      .get<{ posts: Post[]; total: number }>("/search", {
+      .get<{ data: Post[]; total: number }>("/search", {
         q: currentQuery,
         page: "1",
         per_page: "20",
@@ -175,7 +176,7 @@ function SearchContent() {
       .then(([postsResp, authorsResp]) => {
         if (searchRequestID.current !== requestID) return;
 
-        const nextPostResults = postsResp.ok ? postsResp.res?.posts || [] : [];
+        const nextPostResults = postsResp.ok ? postsResp.res?.data || [] : [];
         const nextPostTotal = postsResp.ok ? postsResp.res?.total || 0 : 0;
         const nextAuthorResults = authorsResp.ok ? authorsResp.res?.authors || [] : [];
         const nextAuthorTotal = authorsResp.ok ? authorsResp.res?.total || 0 : 0;

@@ -37,7 +37,7 @@ export function AuthorContent({
         setAuthor(user);
         setPosts(postsRes.data || []);
       })
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load author posts:", err))
       .finally(() => setLoading(false));
   }, [username, initialAuthor]);
 
@@ -52,7 +52,7 @@ export function AuthorContent({
           );
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to enrich author data:", err));
   }, [me, username]);
 
   if (loading) {

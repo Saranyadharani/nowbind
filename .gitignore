@@ -47,5 +47,11 @@ debug/
 # Docker
 docker-compose.override.yml
 
-# Nginx 50x.hmtl
+# Nginx 50x.html
 50x.html
+
+# Claude Code local config
+.claude/settings.local.json
+
+# Scripts
+scripts/node_modules/

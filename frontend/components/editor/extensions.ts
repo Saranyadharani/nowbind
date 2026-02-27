@@ -9,7 +9,8 @@ import {
   HorizontalRule,
   Placeholder,
 } from "novel";
-import { Extension, InputRule } from "@tiptap/core";
+import { Extension, InputRule, type Editor, type Range, type CommandProps } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
 import { Code } from "@tiptap/extension-code";
 import { ReactRenderer } from "@tiptap/react";
 import Suggestion from "@tiptap/suggestion";
@@ -38,9 +39,9 @@ const SlashCommand = Extension.create({
           range,
           props,
         }: {
-          editor: any;
-          range: any;
-          props: any;
+          editor: Editor;
+          range: Range;
+          props: { command: (args: { editor: Editor; range: Range }) => void };
         }) => {
           props.command({ editor, range });
         },
@@ -167,11 +168,11 @@ const FontSize = Extension.create({
     return {
       setFontSize:
         (size: string) =>
-        ({ chain }: any) =>
+        ({ chain }: CommandProps) =>
           chain().setMark("textStyle", { fontSize: size }).run(),
       unsetFontSize:
         () =>
-        ({ chain }: any) =>
+        ({ chain }: CommandProps) =>
           chain().setMark("textStyle", { fontSize: null }).removeEmptyTextStyle().run(),
     } as any;
   },
@@ -209,9 +210,9 @@ const ImageAlign = Extension.create({
     return {
       setImageAlign:
         (align: string) =>
-        ({ tr, state, dispatch }: any) => {
+        ({ tr, state, dispatch }: CommandProps) => {
           const { selection } = state;
-          const node = selection.node ?? state.doc.nodeAt(selection.from);
+          const node = selection instanceof NodeSelection ? selection.node : state.doc.nodeAt(selection.from);
           if (node?.type.name === "image") {
             tr.setNodeMarkup(selection.from, undefined, {
               ...node.attrs,
@@ -257,9 +258,9 @@ const YoutubeResize = Extension.create({
     return {
       setYoutubeWidth:
         (width: string) =>
-        ({ tr, state, dispatch }: any) => {
+        ({ tr, state, dispatch }: CommandProps) => {
           const { selection } = state;
-          const node = selection.node ?? state.doc.nodeAt(selection.from);
+          const node = selection instanceof NodeSelection ? selection.node : state.doc.nodeAt(selection.from);
           if (node?.type.name === "youtube") {
             tr.setNodeMarkup(selection.from, undefined, {
               ...node.attrs,

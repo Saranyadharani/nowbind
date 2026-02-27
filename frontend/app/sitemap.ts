@@ -32,8 +32,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const res = await fetch(`${API_URL}/tags`);
     if (res.ok) {
-      const tags: Tag[] = await res.json();
-      for (const tag of tags || []) {
+      const body = await res.json();
+      const tags: Tag[] = body.data || body || [];
+      for (const tag of tags) {
         entries.push({
           url: `${SITE_URL}/tag/${tag.slug}`,
           changeFrequency: "weekly",

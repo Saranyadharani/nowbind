@@ -49,7 +49,7 @@ func (h *SocialHandler) Follow(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 
 	if err := h.social.Follow(r.Context(), userID, username); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safeSocialError(err))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "following"})
@@ -60,7 +60,7 @@ func (h *SocialHandler) Unfollow(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 
 	if err := h.social.Unfollow(r.Context(), userID, username); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safeSocialError(err))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "unfollowed"})
@@ -220,7 +220,7 @@ func (h *SocialHandler) LikePost(w http.ResponseWriter, r *http.Request) {
 	postID := chi.URLParam(r, "id")
 
 	if err := h.social.Like(r.Context(), userID, postID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safeSocialError(err))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "liked"})
@@ -231,7 +231,7 @@ func (h *SocialHandler) UnlikePost(w http.ResponseWriter, r *http.Request) {
 	postID := chi.URLParam(r, "id")
 
 	if err := h.social.Unlike(r.Context(), userID, postID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safeSocialError(err))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "unliked"})
@@ -275,7 +275,7 @@ func (h *SocialHandler) BookmarkPost(w http.ResponseWriter, r *http.Request) {
 	postID := chi.URLParam(r, "id")
 
 	if err := h.bookmarks.Add(r.Context(), userID, postID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safeSocialError(err))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "bookmarked"})
@@ -286,7 +286,7 @@ func (h *SocialHandler) UnbookmarkPost(w http.ResponseWriter, r *http.Request) {
 	postID := chi.URLParam(r, "id")
 
 	if err := h.bookmarks.Remove(r.Context(), userID, postID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safeSocialError(err))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "unbookmarked"})

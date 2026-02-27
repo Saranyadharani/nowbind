@@ -36,7 +36,7 @@ export default function FollowersPage({ params }: Props) {
         setUsers(res.data || []);
         setTotalPages(res.total_pages);
       })
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load followers:", err))
       .finally(() => setLoading(false));
   }, [username, page]);
 

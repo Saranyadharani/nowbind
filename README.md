@@ -187,7 +187,7 @@ AI-optimized endpoints with API key auth. Create keys from the dashboard or `/ap
 
 ```bash
 curl -H "Authorization: Bearer nb_your_api_key" \
-  https://nowbind.niheshr.com/api/v1/agent/posts
+  https://nowbind.com/api/v1/agent/posts
 ```
 
 | Endpoint | Description |
@@ -206,7 +206,7 @@ NowBind exposes an [MCP](https://modelcontextprotocol.io) server for AI assistan
 {
   "mcpServers": {
     "nowbind": {
-      "url": "https://nowbind.niheshr.com/mcp/",
+      "url": "https://nowbind.com/mcp/",
       "headers": {
         "Authorization": "Bearer nb_your_api_key"
       }

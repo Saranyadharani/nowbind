@@ -34,7 +34,7 @@ type Config struct {
 	AWSSecretAccessKey string
 	AWSRegion          string
 
-	// Cookie domain for cross-subdomain sharing (e.g. ".niheshr.com")
+	// Cookie domain for cross-subdomain sharing (e.g. ".nowbind.com")
 	CookieDomain string
 
 	// Web Push (VAPID)

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -31,4 +32,33 @@ func writeError(w http.ResponseWriter, status int, message string) {
 // WriteJSONPublic is an exported version of writeJSON for use by the router package
 func WriteJSONPublic(w http.ResponseWriter, data interface{}) {
 	json.NewEncoder(w).Encode(data)
+}
+
+// safePostError maps known service errors to user-friendly messages
+// and returns a generic message for unexpected internal errors.
+func safePostError(err error) string {
+	msg := err.Error()
+	switch msg {
+	case "title is required", "post not found", "unauthorized",
+		"slug already taken":
+		return msg
+	default:
+		log.Printf("post handler: unexpected error: %v", err)
+		return "failed to process post"
+	}
+}
+
+// safeSocialError maps known social errors to user-friendly messages.
+func safeSocialError(err error) string {
+	msg := err.Error()
+	switch msg {
+	case "already following", "not following",
+		"cannot follow yourself", "user not found",
+		"already liked", "not liked",
+		"already bookmarked", "not bookmarked":
+		return msg
+	default:
+		log.Printf("social handler: unexpected error: %v", err)
+		return "failed to process request"
+	}
 }

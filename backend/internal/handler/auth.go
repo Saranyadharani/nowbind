@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,6 +22,78 @@ import (
 	"github.com/nowbind/nowbind/internal/repository"
 	"github.com/nowbind/nowbind/internal/service"
 )
+
+// emailRateLimiter tracks per-email magic link request timestamps to prevent
+// abuse of the email-sending endpoint. Allows maxRequests per window.
+type emailRateLimiter struct {
+	mu          sync.Mutex
+	requests    map[string][]time.Time
+	maxRequests int
+	window      time.Duration
+}
+
+func newEmailRateLimiter(maxRequests int, window time.Duration) *emailRateLimiter {
+	rl := &emailRateLimiter{
+		requests:    make(map[string][]time.Time),
+		maxRequests: maxRequests,
+		window:      window,
+	}
+	go rl.cleanup()
+	return rl
+}
+
+// Allow returns true if the email has not exceeded the rate limit.
+func (rl *emailRateLimiter) Allow(email string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-rl.window)
+
+	// Filter to only timestamps within the current window.
+	timestamps := rl.requests[email]
+	valid := timestamps[:0]
+	for _, t := range timestamps {
+		if t.After(cutoff) {
+			valid = append(valid, t)
+		}
+	}
+
+	if len(valid) >= rl.maxRequests {
+		rl.requests[email] = valid
+		return false
+	}
+
+	rl.requests[email] = append(valid, now)
+	return true
+}
+
+// cleanup periodically removes expired entries to prevent unbounded memory growth.
+func (rl *emailRateLimiter) cleanup() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		rl.mu.Lock()
+		cutoff := time.Now().Add(-rl.window)
+		for email, timestamps := range rl.requests {
+			valid := timestamps[:0]
+			for _, t := range timestamps {
+				if t.After(cutoff) {
+					valid = append(valid, t)
+				}
+			}
+			if len(valid) == 0 {
+				delete(rl.requests, email)
+			} else {
+				rl.requests[email] = valid
+			}
+		}
+		rl.mu.Unlock()
+	}
+}
+
+// magicLinkLimiter enforces max 3 magic link emails per email address per hour.
+var magicLinkLimiter = newEmailRateLimiter(3, time.Hour)
 
 type AuthHandler struct {
 	auth     *service.AuthService
@@ -49,8 +122,16 @@ func (h *AuthHandler) SendMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is banned before sending email
+	// Normalize email for consistent rate-limit and ban checks.
 	email := strings.ToLower(strings.TrimSpace(req.Email))
+
+	// Per-email rate limit: max 3 magic links per hour.
+	if !magicLinkLimiter.Allow(email) {
+		writeError(w, http.StatusTooManyRequests, "too many magic link requests, try again later")
+		return
+	}
+
+	// Check if user is banned before sending email
 	var banned bool
 	err := h.pool.QueryRow(r.Context(),
 		`SELECT EXISTS(
@@ -249,7 +330,11 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if refreshToken, err := r.Cookie("refresh_token"); err == nil {
-		h.auth.Logout(r.Context(), refreshToken.Value)
+		if err := h.auth.Logout(r.Context(), refreshToken.Value); err != nil {
+			log.Printf("logout: failed to delete session: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to logout")
+			return
+		}
 	}
 	h.clearAuthCookies(w)
 	w.WriteHeader(http.StatusNoContent)
@@ -357,7 +442,7 @@ func generateOAuthState() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// backendOrigin returns the public origin of this backend server (e.g. "https://nowbindb.niheshr.com")
+// backendOrigin returns the public origin of this backend server (e.g. "https://api.nowbind.com")
 func (h *AuthHandler) backendOrigin(r *http.Request) string {
 	scheme := "http"
 	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {

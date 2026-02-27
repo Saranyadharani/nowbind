@@ -36,7 +36,7 @@ export default function LikedPage() {
         setPosts(res.data || []);
         setTotalPages(res.total_pages);
       })
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load liked posts:", err))
       .finally(() => setLoading(false));
   }, [page, user, authLoading, router]);
 

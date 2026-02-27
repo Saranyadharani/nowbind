@@ -94,7 +94,7 @@ export default function DashboardPage() {
     api
       .get<PaginatedResponse<Post>>("/users/me/posts", params)
       .then((res) => setPosts(res.data || []))
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load user posts:", err))
       .finally(() => setLoading(false));
   }, [user, authLoading, statusFilter, tagFilter, sortBy]);
 

@@ -113,7 +113,7 @@ func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	post, err := h.postService.Create(r.Context(), userID, input)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safePostError(err))
 		return
 	}
 
@@ -137,10 +137,10 @@ func (h *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err.Error() == "post not found" {
-			writeError(w, http.StatusNotFound, err.Error())
+			writeError(w, http.StatusNotFound, "post not found")
 			return
 		}
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safePostError(err))
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *PostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	postID := chi.URLParam(r, "id")
 
 	if err := h.postService.Delete(r.Context(), postID, userID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safePostError(err))
 		return
 	}
 
@@ -164,7 +164,7 @@ func (h *PostHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	postID := chi.URLParam(r, "id")
 
 	if err := h.postService.Publish(r.Context(), postID, userID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safePostError(err))
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *PostHandler) Unpublish(w http.ResponseWriter, r *http.Request) {
 	postID := chi.URLParam(r, "id")
 
 	if err := h.postService.Unpublish(r.Context(), postID, userID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, safePostError(err))
 		return
 	}
 

@@ -38,11 +38,13 @@ func (h *TagHandler) List(w http.ResponseWriter, r *http.Request) {
 	if total%perPage > 0 {
 		totalPages++
 	}
-	w.Header().Set("X-Total-Count", strconv.Itoa(total))
-	w.Header().Set("X-Page", strconv.Itoa(page))
-	w.Header().Set("X-Per-Page", strconv.Itoa(perPage))
-	w.Header().Set("X-Total-Pages", strconv.Itoa(totalPages))
-	writeJSON(w, http.StatusOK, tags)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"data":        tags,
+		"total":       total,
+		"page":        page,
+		"per_page":    perPage,
+		"total_pages": totalPages,
+	})
 }
 
 func (h *TagHandler) GetPostsByTag(w http.ResponseWriter, r *http.Request) {

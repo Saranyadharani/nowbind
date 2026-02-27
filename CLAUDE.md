@@ -1,6 +1,10 @@
-# NowBind
+# CLAUDE.md
 
-Open-source blogging platform where every post is both a beautiful article and a structured AI-agent feed. Multi-tenant, Medium-style with social features.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+NowBind is an open-source blogging platform where every post is both a beautiful article and a structured AI-agent feed. Multi-tenant, Medium-style with social features. Licensed under AGPL-3.0.
 
 ## Tech Stack
 
@@ -16,6 +20,34 @@ Open-source blogging platform where every post is both a beautiful article and a
 | PWA | Serwist (service worker), Web Push (VAPID) |
 | AI | MCP server (JSON-RPC 2.0), llms.txt, Agent REST API |
 
+## Build & Run
+
+```bash
+# Backend
+cd backend && go build ./...                    # Verify compilation
+cd backend && go run ./cmd/server               # Run (auto-migrates on startup)
+cd backend && go run ./cmd/server -migrate      # Migrate only
+cd backend && go vet ./...                      # Lint
+cd backend && go test ./...                     # Run tests
+
+# Frontend
+cd frontend && npm install                       # Install deps
+cd frontend && npm run dev                       # Dev server (port 3000, Turbopack)
+cd frontend && npm run build                     # Production build
+cd frontend && npm run lint                      # ESLint
+
+# Docker (requires host-managed PostgreSQL on localhost:5432)
+docker-compose up --build
+```
+
+Hot reload: backend uses Air (`backend/.air.toml`), frontend uses Turbopack via `npm run dev`.
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on PR/push to `main`:
+- **Backend**: `go build ./...`, `go vet ./...`, `go test ./...`
+- **Frontend**: `npm ci`, `npm run lint`, `npm run build`
+
 ## Directory Structure
 
 ```
@@ -25,13 +57,13 @@ nowbind/
 │   ├── internal/
 │   │   ├── config/                  # Env config loader
 │   │   ├── database/               # PostgreSQL pool + migration runner
-│   │   │   └── migrations/         # 001-011 SQL migrations (idempotent)
+│   │   │   └── migrations/         # 001-013 SQL migrations (idempotent)
 │   │   ├── handler/                # HTTP handlers (thin, delegate to services)
 │   │   ├── middleware/             # Auth, API key, CORS, logging, rate limit, security headers
 │   │   ├── mcp/                    # MCP server (resources + tools)
 │   │   ├── model/                  # Domain structs (single models.go)
 │   │   ├── repository/            # Data access layer (one file per entity)
-│   │   ├── router/                # Route definitions (chi)
+│   │   ├── router/                # Route definitions + dependency wiring (chi)
 │   │   ├── server/                # HTTP server setup
 │   │   └── service/               # Business logic
 │   ├── pkg/                        # JWT, slug, gravatar utilities
@@ -55,7 +87,7 @@ nowbind/
 │   │   ├── theme/                  # Dark/light mode (next-themes)
 │   │   └── ui/                     # shadcn/ui primitives
 │   └── lib/
-│       ├── api.ts                  # API client with auto token refresh
+│       ├── api.ts                  # API client with auto token refresh (mutex-based)
 │       ├── auth-context.tsx        # React auth context provider
 │       ├── constants.ts            # API_URL, SITE_URL, limits
 │       ├── types.ts                # TypeScript interfaces matching Go models
@@ -63,29 +95,8 @@ nowbind/
 │       └── hooks/                  # Custom hooks (auth, social, media, notifications, autosave)
 │
 ├── scripts/                        # Content migration scripts
-├── docker-compose.yml              # PostgreSQL 16
-├── Makefile                        # Dev commands
+├── docker-compose.yml              # Backend + frontend containers (host Postgres)
 └── PLAN.md                         # Feature roadmap
-```
-
-## Build & Run
-
-```bash
-# Backend
-cd backend && go build ./...                    # Verify compilation
-cd backend && go run ./cmd/server               # Run (auto-migrates)
-cd backend && go run ./cmd/server -migrate      # Migrate only
-
-# Frontend
-cd frontend && npm install                       # Install deps
-cd frontend && npm run build -- --webpack        # Production build
-cd frontend && npm run dev                       # Dev server (port 3000)
-cd frontend && npm run lint                      # ESLint
-
-# Both (from root)
-make dev                                         # DB + backend + frontend
-make build-backend                               # Go binary
-make build-frontend                              # Next.js build
 ```
 
 ## Architecture Patterns
@@ -95,13 +106,14 @@ make build-frontend                              # Next.js build
 - **API client with token refresh**: `lib/api.ts` auto-retries on 401 using refresh token mutex to prevent concurrent refreshes. Uses `credentials: "include"` for HttpOnly cookies.
 - **OptionalAuth middleware**: Public endpoints use `OptionalAuth` to enrich responses with user-specific data (is_liked, is_bookmarked, is_following) when a JWT is present.
 - **Social enrichment**: `SocialHandler.EnrichPostSlice()` adds like/bookmark/follow state to post lists for the current user.
-- **Next.js rewrites**: Frontend proxies `/api/*`, `/health`, `/llms.txt`, `/mcp` to the Go backend via `next.config.ts` rewrites. This means the frontend URL is the single entry point.
+- **Next.js rewrites**: Frontend proxies `/api/*`, `/health`, `/llms.txt`, `/mcp` to the Go backend via `next.config.ts` rewrites. The frontend URL is the single entry point.
 - **Server Components by default**: Only use `"use client"` when client interactivity is needed.
 - **Content format dual support**: Posts have `content` (markdown) and `content_json` (TipTap JSON), with `content_format` field to distinguish.
+- **Rate limiting**: Global (200 req/min), Auth (10 req/min), ApiKey (100 req/min).
 
 ## Database Migrations
 
-Migrations are in `backend/internal/database/migrations/` and run automatically on startup (idempotent).
+Migrations are in `backend/internal/database/migrations/` and run automatically on startup (idempotent). PostgreSQL requires `uuid-ossp` and `pg_trgm` extensions.
 
 | File | Description |
 |------|-------------|
@@ -116,6 +128,8 @@ Migrations are in `backend/internal/database/migrations/` and run automatically 
 | `009_ai_views.sql` | source/user_agent on post_views, ai_view_count |
 | `010_tiptap_content.sql` | content_json (JSONB), content_format, media table |
 | `011_feature_parity.sql` | feature_image, featured flag, user social links + SEO metadata |
+| `012_user_bans.sql` | user suspension/banning |
+| `013_magic_link_token_hash.sql` | token hashing for magic links |
 
 New migrations: use `NNN_description.sql` format with `IF NOT EXISTS`/`IF EXISTS` for idempotency. Never modify merged migrations.
 

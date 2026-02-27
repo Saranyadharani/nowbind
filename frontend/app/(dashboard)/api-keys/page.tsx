@@ -39,7 +39,7 @@ export default function ApiKeysPage() {
     api
       .get<ApiKey[]>("/api-keys")
       .then((k) => setKeys(k || []))
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load API keys:", err))
       .finally(() => setLoading(false));
   }, [user, authLoading, router]);
 

@@ -73,7 +73,7 @@ export default function SettingsPage() {
       api
         .get<NotificationPreferences>("/notifications/preferences")
         .then(setNotifPrefs)
-        .catch(() => {});
+        .catch((err) => console.error("Failed to load notification preferences:", err));
     }
   }, [user, authLoading, router]);
 

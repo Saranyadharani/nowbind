@@ -50,7 +50,7 @@ export default function StatsPage() {
           setTopPosts(tp || []);
           setReferrers(rf || []);
         })
-        .catch(() => {})
+        .catch((err) => console.error("Failed to load stats:", err))
         .finally(() => setLoading(false));
     },
     [user]

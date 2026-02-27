@@ -54,10 +54,17 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	h.socialH.EnrichPostSlice(r, posts)
 
+	totalPages := total / perPage
+	if total%perPage > 0 {
+		totalPages++
+	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"query": query,
-		"posts": posts,
-		"total": total,
+		"query":       query,
+		"data":        posts,
+		"total":       total,
+		"page":        page,
+		"per_page":    perPage,
+		"total_pages": totalPages,
 	})
 }
 

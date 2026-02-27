@@ -1,2 +1,12 @@
 # compiled binary
 /app
+
+# environment
+.env
+.env.*
+
+# air hot reload
+tmp/
+
+# build output
+bin/

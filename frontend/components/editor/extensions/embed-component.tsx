@@ -1,6 +1,6 @@
 "use client";
 
-import { NodeViewWrapper } from "@tiptap/react";
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { ExternalLink, X, Code2, Github, MessageCircle } from "lucide-react";
 import {
   extractTwitterId,
@@ -32,7 +32,7 @@ const providerConfig = {
   },
 };
 
-export function EmbedComponent({ node, deleteNode, selected }: any) {
+export function EmbedComponent({ node, deleteNode, selected }: NodeViewProps) {
   const { provider, url } = node.attrs;
   const config =
     providerConfig[provider as keyof typeof providerConfig] ||

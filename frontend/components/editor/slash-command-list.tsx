@@ -24,11 +24,13 @@ import {
   Globe,
 } from "lucide-react";
 
+import type { Editor, Range } from "@tiptap/core";
+
 export interface CommandItemDef {
   title: string;
   description: string;
   icon: React.ReactNode;
-  command: (props: { editor: any; range: any }) => void;
+  command: (props: { editor: Editor; range: Range }) => void;
 }
 
 interface CommandGroup {
@@ -247,10 +249,10 @@ export const commandGroups: CommandGroup[] = [
 ];
 
 interface SlashCommandListProps {
-  editor: any;
-  range: any;
+  editor: Editor;
+  range: Range;
   query: string;
-  command: (item: { command: (props: { editor: any; range: any }) => void }) => void;
+  command: (item: { command: (props: { editor: Editor; range: Range }) => void }) => void;
 }
 
 export function SlashCommandList({ query, command }: SlashCommandListProps) {

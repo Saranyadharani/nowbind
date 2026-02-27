@@ -57,7 +57,7 @@ export default function ProfilePage() {
         setProfile(profileData);
         setPosts(postsRes.data || []);
       })
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load profile data:", err))
       .finally(() => setLoading(false));
   }, [user, authLoading, router]);
 
@@ -72,7 +72,7 @@ export default function ProfilePage() {
         setFollowers(res.data || []);
         setFollowersTotalPages(res.total_pages);
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load followers:", err));
   }, [user, followersPage]);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function ProfilePage() {
         setFollowing(res.data || []);
         setFollowingTotalPages(res.total_pages);
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load following:", err));
   }, [user, followingPage]);
 
   // Fetch suggested users to follow (from explore/recent authors)
@@ -115,7 +115,7 @@ export default function ProfilePage() {
         );
         setSuggested(enriched);
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load suggested users:", err));
   }, [user]);
 
   if (authLoading || loading) {

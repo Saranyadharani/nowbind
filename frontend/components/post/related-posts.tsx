@@ -16,7 +16,7 @@ export function RelatedPosts({ slug }: RelatedPostsProps) {
     api
       .get<Post[]>(`/posts/${slug}/related`)
       .then((data) => setPosts(data || []))
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load related posts:", err));
   }, [slug]);
 
   if (posts.length === 0) return null;

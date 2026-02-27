@@ -4,7 +4,7 @@
 
 **Base URLs:**
 - Local: `http://localhost:8080`
-- Production: `https://nowbindb.niheshr.com` (your backend URL)
+- Production: `https://api.nowbind.com` (your backend URL)
 
 **API Key:** Replace `nb_xxxxx` with your actual key (starts with `nb_`).
 
@@ -182,14 +182,14 @@ NowBind's MCP server works with all major AI coding tools. Replace `YOUR_API_KEY
 **Add via command:**
 
 ```bash
-claude mcp add --transport http nowbind https://nowbind.niheshr.com/mcp/ \
+claude mcp add --transport http nowbind https://nowbind.com/mcp/ \
   --header "Authorization: Bearer YOUR_API_KEY"
 ```
 
 Or with JSON:
 
 ```bash
-claude mcp add-json nowbind '{"type":"http","url":"https://nowbind.niheshr.com/mcp/","headers":{"Authorization":"Bearer YOUR_API_KEY"}}'
+claude mcp add-json nowbind '{"type":"http","url":"https://nowbind.com/mcp/","headers":{"Authorization":"Bearer YOUR_API_KEY"}}'
 ```
 
 **Project-scoped config (`.mcp.json` in project root):**
@@ -199,7 +199,7 @@ claude mcp add-json nowbind '{"type":"http","url":"https://nowbind.niheshr.com/m
   "mcpServers": {
     "nowbind": {
       "type": "http",
-      "url": "https://nowbind.niheshr.com/mcp/",
+      "url": "https://nowbind.com/mcp/",
       "headers": {
         "Authorization": "Bearer ${NOWBIND_API_KEY}"
       }
@@ -225,7 +225,7 @@ Claude Desktop does not support remote HTTP servers in the config file directly.
       "command": "npx",
       "args": [
         "-y", "mcp-remote",
-        "https://nowbind.niheshr.com/mcp/",
+        "https://nowbind.com/mcp/",
         "--header", "Authorization: Bearer YOUR_API_KEY"
       ]
     }
@@ -246,7 +246,7 @@ Or add via **Settings > Connectors** in the Claude Desktop UI (Pro/Max/Team plan
   "servers": {
     "nowbind": {
       "type": "http",
-      "url": "https://nowbind.niheshr.com/mcp/",
+      "url": "https://nowbind.com/mcp/",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }
@@ -263,7 +263,7 @@ Or in VS Code `settings.json`:
     "servers": {
       "nowbind": {
         "type": "http",
-        "url": "https://nowbind.niheshr.com/mcp/",
+        "url": "https://nowbind.com/mcp/",
         "headers": {
           "Authorization": "Bearer YOUR_API_KEY"
         }
@@ -281,7 +281,7 @@ Or in VS Code `settings.json`:
 
 ```toml
 [mcp_servers.nowbind]
-url = "https://nowbind.niheshr.com/mcp/"
+url = "https://nowbind.com/mcp/"
 http_headers = { "Authorization" = "Bearer YOUR_API_KEY" }
 ```
 
@@ -289,7 +289,7 @@ Or use env var:
 
 ```toml
 [mcp_servers.nowbind]
-url = "https://nowbind.niheshr.com/mcp/"
+url = "https://nowbind.com/mcp/"
 bearer_token_env_var = "NOWBIND_API_KEY"
 ```
 
@@ -303,7 +303,7 @@ bearer_token_env_var = "NOWBIND_API_KEY"
 {
   "mcpServers": {
     "nowbind": {
-      "url": "https://nowbind.niheshr.com/mcp/",
+      "url": "https://nowbind.com/mcp/",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }
@@ -322,7 +322,7 @@ bearer_token_env_var = "NOWBIND_API_KEY"
 {
   "mcpServers": {
     "nowbind": {
-      "serverUrl": "https://nowbind.niheshr.com/mcp/",
+      "serverUrl": "https://nowbind.com/mcp/",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }
@@ -343,7 +343,7 @@ Note: Windsurf uses `serverUrl` instead of `url`.
 mcpServers:
   - name: nowbind
     type: streamable-http
-    url: "https://nowbind.niheshr.com/mcp/"
+    url: "https://nowbind.com/mcp/"
     requestOptions:
       headers:
         Authorization: "Bearer YOUR_API_KEY"
@@ -363,7 +363,7 @@ macOS: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude
 {
   "mcpServers": {
     "nowbind": {
-      "url": "https://nowbind.niheshr.com/mcp/",
+      "url": "https://nowbind.com/mcp/",
       "type": "streamableHttp",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
@@ -386,7 +386,7 @@ Note: Cline uses camelCase `streamableHttp`.
   "mcp": {
     "nowbind": {
       "type": "remote",
-      "url": "https://nowbind.niheshr.com/mcp/",
+      "url": "https://nowbind.com/mcp/",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }

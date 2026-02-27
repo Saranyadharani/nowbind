@@ -1,5 +1,6 @@
 "use client";
 
+import type { Editor, Range } from "@tiptap/core";
 import {
   EditorCommand,
   EditorCommandItem,
@@ -40,7 +41,7 @@ const commandGroups = [
         title: "Heading 1",
         description: "Large section heading",
         icon: <Heading1 className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
         },
       },
@@ -48,7 +49,7 @@ const commandGroups = [
         title: "Heading 2",
         description: "Medium section heading",
         icon: <Heading2 className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
         },
       },
@@ -56,7 +57,7 @@ const commandGroups = [
         title: "Heading 3",
         description: "Small section heading",
         icon: <Heading3 className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
         },
       },
@@ -69,7 +70,7 @@ const commandGroups = [
         title: "Bullet List",
         description: "Create a bullet list",
         icon: <List className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleBulletList().run();
         },
       },
@@ -77,7 +78,7 @@ const commandGroups = [
         title: "Numbered List",
         description: "Create a numbered list",
         icon: <ListOrdered className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleOrderedList().run();
         },
       },
@@ -90,7 +91,7 @@ const commandGroups = [
         title: "Code Block",
         description: "Add a code snippet",
         icon: <Code className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
         },
       },
@@ -98,7 +99,7 @@ const commandGroups = [
         title: "Quote",
         description: "Add a blockquote",
         icon: <Quote className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleBlockquote().run();
         },
       },
@@ -106,7 +107,7 @@ const commandGroups = [
         title: "Divider",
         description: "Add a horizontal rule",
         icon: <Minus className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setHorizontalRule().run();
         },
       },
@@ -114,7 +115,7 @@ const commandGroups = [
         title: "Callout",
         description: "Add an info callout",
         icon: <Info className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setCallout({ type: "info" }).run();
         },
       },
@@ -122,7 +123,7 @@ const commandGroups = [
         title: "Warning",
         description: "Add a warning callout",
         icon: <AlertTriangle className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setCallout({ type: "warning" }).run();
         },
       },
@@ -130,7 +131,7 @@ const commandGroups = [
         title: "Tip",
         description: "Add a tip callout",
         icon: <Lightbulb className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setCallout({ type: "tip" }).run();
         },
       },
@@ -138,7 +139,7 @@ const commandGroups = [
         title: "Note",
         description: "Add a note callout",
         icon: <StickyNote className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setCallout({ type: "note" }).run();
         },
       },
@@ -160,7 +161,7 @@ const commandGroups = [
         title: "Image URL",
         description: "Embed an image from a link",
         icon: <ImageIcon className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           const url = prompt("Enter image URL:");
           if (url) {
             editor.chain().focus().deleteRange(range).setImage({ src: url }).run();
@@ -171,7 +172,7 @@ const commandGroups = [
         title: "YouTube Video",
         description: "Embed a YouTube video",
         icon: <Youtube className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           const url = prompt("Enter YouTube URL:");
           if (url) {
             editor.chain().focus().deleteRange(range).setYoutubeVideo({ src: url }).run();
@@ -182,7 +183,7 @@ const commandGroups = [
         title: "Bookmark",
         description: "Embed a link as a card",
         icon: <LinkIcon className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           const url = prompt("Enter URL:");
           if (url) {
             editor
@@ -203,7 +204,7 @@ const commandGroups = [
         title: "Embed",
         description: "Embed from URL (Twitter, Gist, CodePen)",
         icon: <Globe className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).run();
           window.dispatchEvent(
             new CustomEvent("editor-url-prompt", { detail: { type: "embed" } })
@@ -214,7 +215,7 @@ const commandGroups = [
         title: "Twitter",
         description: "Embed a tweet",
         icon: <MessageCircle className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).run();
           window.dispatchEvent(
             new CustomEvent("editor-url-prompt", { detail: { type: "embed" } })
@@ -225,7 +226,7 @@ const commandGroups = [
         title: "Gist",
         description: "Embed a GitHub Gist",
         icon: <Github className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).run();
           window.dispatchEvent(
             new CustomEvent("editor-url-prompt", { detail: { type: "embed" } })
@@ -236,7 +237,7 @@ const commandGroups = [
         title: "CodePen",
         description: "Embed a CodePen",
         icon: <Code2 className="h-4 w-4" />,
-        command: ({ editor, range }: { editor: any; range: any }) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).run();
           window.dispatchEvent(
             new CustomEvent("editor-url-prompt", { detail: { type: "embed" } })

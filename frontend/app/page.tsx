@@ -26,7 +26,7 @@ export default function HomePage() {
     api
       .get<{ data: Post[] }>("/posts", { per_page: "4", page: "1" })
       .then((res) => setRecentPosts(res.data || []))
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load recent posts:", err));
   }, []);
 
   if (loading || user) {
