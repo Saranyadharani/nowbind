@@ -11,6 +11,7 @@ import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { SwRegister } from "@/components/pwa/sw-register";
 import { OfflineStatus } from "@/components/pwa/offline-status";
 import { Toaster } from "sonner";
+import { Analytics } from "@/components/analytics";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-sans",
@@ -133,6 +134,7 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
+        <Analytics />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
