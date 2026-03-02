@@ -1,5 +1,18 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import {
+  Space_Grotesk,
+  JetBrains_Mono,
+  Inter,
+  Bitter,
+  Playfair_Display,
+  Lora,
+  DM_Sans,
+  DM_Serif_Display,
+  Libre_Baskerville,
+  Source_Sans_3,
+  Fraunces,
+  Manrope,
+} from "next/font/google";
 import "./globals.css";
 import { safeJsonLd } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -14,7 +27,7 @@ import { Toaster } from "sonner";
 import { Analytics } from "@/components/analytics";
 
 const spaceGrotesk = Space_Grotesk({
-  variable: "--font-sans",
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
@@ -23,6 +36,73 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+});
+
+// ── Font pairings (Heading + Body) ──────────────────────────────
+// 1. Inter + Georgia (Claude.ai style) — Georgia is a system font, no import needed
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+// 2. Sohne + Charter (Medium.com) — Bitter is the free Charter alternative
+const bitter = Bitter({
+  variable: "--font-bitter",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+// 3. Playfair Display + Lora (editorial)
+const playfairDisplay = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
+const lora = Lora({
+  variable: "--font-lora",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+// 4. DM Sans + DM Serif Display (same family contrast)
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const dmSerifDisplay = DM_Serif_Display({
+  variable: "--font-dm-serif",
+  subsets: ["latin"],
+  weight: ["400"],
+});
+
+// 5. Libre Baskerville + Source Sans 3 (classic)
+const libreBaskerville = Libre_Baskerville({
+  variable: "--font-libre-baskerville",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
+const sourceSans3 = Source_Sans_3({
+  variable: "--font-source-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+// 6. Fraunces + Manrope (quirky-elegant)
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
+
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nowbind.com";
@@ -132,7 +212,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${inter.variable} ${bitter.variable} ${playfairDisplay.variable} ${lora.variable} ${dmSans.variable} ${dmSerifDisplay.variable} ${libreBaskerville.variable} ${sourceSans3.variable} ${fraunces.variable} ${manrope.variable} font-sans antialiased`}
       >
         <Analytics />
         <ThemeProvider
