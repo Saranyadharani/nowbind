@@ -6,6 +6,7 @@ import { defaultExtensions } from "./extensions";
 import { EditorBubbleMenu } from "./bubble-menu";
 import { EditorToolbar } from "./editor-toolbar";
 import type { Editor } from "@tiptap/core";
+import MarkdownIt from "markdown-it";
 import { getReadingTime } from "@/lib/utils";
 import { detectProvider } from "./extensions/embed-utils";
 import {
@@ -51,6 +52,56 @@ const urlPromptConfig: Record<
     placeholder: "https://twitter.com/user/status/...",
   },
 };
+
+const markdownPasteParser = new MarkdownIt({
+  html: false,
+  linkify: true,
+});
+
+const markdownPastePatterns = [
+  /(^|\n)\s{0,3}#{1,6}\s+\S/,
+  /(^|\n)\s*([-*+])\s+\S/,
+  /(^|\n)\s*\d+\.\s+\S/,
+  /(^|\n)\s*>\s+\S/,
+  /(^|\n)\s{0,3}(```|~~~)/,
+  /(^|\n)\s{0,3}(-{3,}|\*{3,}|_{3,})\s*(\n|$)/,
+  /`[^`\n]+`/,
+  /(\*\*[^*\n]+\*\*)|(__[^_\n]+__)/,
+  /~~[^~\n]+~~/,
+  /\[[^\]]+\]\([^)]+\)/,
+  /!\[[^\]]*]\([^)]+\)/,
+  /(^|\n).*\|.*\n\s*\|?\s*:?-{3,}:?\s*\|/,
+];
+
+function getClipboardMarkdown(clipboardData: DataTransfer): string | null {
+  const markdown = clipboardData.getData("text/markdown")?.trim();
+  if (markdown) {
+    return markdown;
+  }
+
+  const plainText = clipboardData.getData("text/plain")?.trim();
+  if (!plainText) {
+    return null;
+  }
+
+  // Keep native rich-text paste except for GitHub code-view HTML, where
+  // plain text contains the markdown source we actually want.
+  const html = clipboardData.getData("text/html")?.trim();
+  if (html) {
+    const isGitHubCodeClipboard = /blob-code|js-file-line|highlight-source-|class=["'][^"']*pl-[^"']*["']/.test(
+      html
+    );
+    if (!isGitHubCodeClipboard) {
+      return null;
+    }
+  }
+
+  const looksLikeMarkdown = markdownPastePatterns.some((pattern) =>
+    pattern.test(plainText)
+  );
+
+  return looksLikeMarkdown ? plainText : null;
+}
 
 interface BlockEditorProps {
   initialContent?: JSONContent;
@@ -239,7 +290,8 @@ export function BlockEditor({
               return false;
             },
             handlePaste: (view, event) => {
-              const items = event.clipboardData?.items;
+              const clipboardData = event.clipboardData;
+              const items = clipboardData?.items;
               if (!items) return false;
 
               for (const item of items) {
@@ -257,7 +309,18 @@ export function BlockEditor({
                   return true;
                 }
               }
-              return false;
+
+              const markdownText = clipboardData
+                ? getClipboardMarkdown(clipboardData)
+                : null;
+              if (!markdownText || !editorRef.current) return false;
+
+              const renderedHTML = markdownPasteParser.render(markdownText).trim();
+              if (!renderedHTML) return false;
+
+              event.preventDefault();
+              editorRef.current.chain().focus().insertContent(renderedHTML).run();
+              return true;
             },
             attributes: {
               class: "ProseMirror focus:outline-none",
