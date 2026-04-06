@@ -23,6 +23,36 @@ func NewUserHandler(users *repository.UserRepository, posts *repository.PostRepo
 	return &UserHandler{users: users, posts: posts, follows: follows, socialH: socialH}
 }
 
+func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
+        page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+        perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
+        if page < 1 {
+                page = 1
+        }
+        if perPage < 1 || perPage > 100 {
+                perPage = 50
+        }
+
+        users, total, err := h.users.ListAuthorsPaginated(r.Context(), page, perPage)
+        if err != nil {
+                writeError(w, http.StatusInternalServerError, "failed to list users")
+                return
+        }
+
+        totalPages := total / perPage
+        if total%perPage > 0 {
+                totalPages++
+        }
+
+        writeJSON(w, http.StatusOK, map[string]interface{}{
+                "data":        users,
+                "total":       total,
+                "page":        page,
+                "per_page":    perPage,
+                "total_pages": totalPages,
+        })
+}
+
 func (h *UserHandler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 	user, err := h.users.GetByUsername(r.Context(), username)

@@ -124,6 +124,7 @@ func New(pool *pgxpool.Pool, cfg *config.Config) *chi.Mux {
 
 		// Users
 		r.Route("/users", func(r chi.Router) {
+			r.Get("/", userH.List)
 			r.With(middleware.OptionalAuth(cfg.JWTSecret)).Get("/{username}", userH.GetByUsername)
 			r.With(middleware.OptionalAuth(cfg.JWTSecret)).Get("/{username}/posts", userH.GetUserPosts)
 			r.With(middleware.OptionalAuth(cfg.JWTSecret)).Get("/{username}/followers", socialH.GetFollowers)
