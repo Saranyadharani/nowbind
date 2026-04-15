@@ -96,6 +96,10 @@ func New(pool *pgxpool.Pool, cfg *config.Config) *chi.Mux {
 			r.Get("/oauth/google/callback", authH.GoogleCallback)
 			r.Get("/oauth/github", authH.GitHubLogin)
 			r.Get("/oauth/github/callback", authH.GitHubCallback)
+
+			// Dev-only login (requires DEV_LOGIN=true)
+			r.Get("/dev-login/status", authH.DevLoginStatus)
+			r.Post("/dev-login", authH.DevLogin)
 		})
 
 		// Posts (public)

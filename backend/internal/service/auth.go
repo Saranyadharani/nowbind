@@ -283,6 +283,41 @@ func (s *AuthService) HandleGitHubCallback(ctx context.Context, code, clientID, 
 	return user, session, accessToken, nil
 }
 
+// DevLogin creates or finds a user by email and issues tokens directly,
+// bypassing OAuth and email verification. For local development only.
+func (s *AuthService) DevLogin(ctx context.Context, email string) (*model.User, *model.Session, string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	user, err := s.users.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	if user == nil {
+		username := strings.Split(email, "@")[0]
+		username = pkg.Slugify(username)
+		user = &model.User{
+			Email:       email,
+			Username:    username,
+			DisplayName: "Dev User",
+		}
+		if err := s.users.Create(ctx, user); err != nil {
+			return nil, nil, "", fmt.Errorf("creating dev user: %w", err)
+		}
+	}
+
+	session, err := s.sessions.Create(ctx, user.ID)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	accessToken, err := pkg.GenerateAccessToken(user.ID, s.secret)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return user, session, accessToken, nil
+}
+
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*model.User, *model.Session, string, error) {
 	session, err := s.sessions.GetByToken(ctx, refreshToken)
 	if err != nil {

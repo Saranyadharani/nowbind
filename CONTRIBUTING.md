@@ -10,23 +10,58 @@ Thanks for your interest in contributing to NowBind! This document outlines the 
 
 ## Development Setup
 
+No OAuth keys, email credentials, or third-party accounts are needed to run NowBind locally.
+
+### Prerequisites
+
+- Go 1.25+, Node.js 20+, PostgreSQL 15+ (running on your host)
+
+### 1. Backend
+
 ```bash
-# Start PostgreSQL locally (host-managed, not Docker in this repo)
-# Example: brew services start postgresql@16
-
-# Backend (Go)
 cd backend
-cp .env.example .env   # configure your env
-go mod download
-go run cmd/server/main.go -migrate
-go run cmd/server/main.go
-
-# Frontend (Next.js)
-cd frontend
-npm install
-cp .env.example .env.local   # configure your env
-npm run dev
+cp .env.example .env
 ```
+
+Edit `backend/.env` and set **only** `JWT_SECRET` (min 32 characters). Everything else has working defaults:
+
+```
+JWT_SECRET=your-secret-key-at-least-32-characters-long
+```
+
+```bash
+go mod download
+go run cmd/server/main.go    # auto-runs migrations, starts on :8080
+```
+
+### 2. Frontend
+
+```bash
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev                  # starts on :3000
+```
+
+### 3. Log in with Dev Login
+
+Open `http://localhost:3000/login`. Click the **"Dev Login (no keys needed)"** button at the top of the page. You're instantly logged in as `dev@localhost` -- no OAuth, no email verification.
+
+> Dev Login is only available when `ENVIRONMENT=development` (backend, the default) and `NODE_ENV=development` (frontend, the default with `npm run dev`). It returns 404 in production.
+
+### Optional: Full Auth Setup
+
+If you're working on auth-specific features, you'll need the real credentials:
+
+| Feature | Required Keys |
+|---|---|
+| Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| GitHub OAuth | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
+| Magic link emails | `EMAIL_SENDER`, `GMAIL_REFRESH_TOKEN` (+ Google OAuth keys) |
+| Web Push | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` |
+| Media uploads | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` |
+
+See `backend/.env.example` for all options.
 
 ## Quick First Contribution
 

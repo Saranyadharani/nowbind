@@ -442,6 +442,37 @@ func generateOAuthState() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// DevLogin creates or finds a dev user and issues tokens directly.
+// Only available when DEV_LOGIN=true is explicitly set.
+func (h *AuthHandler) DevLogin(w http.ResponseWriter, r *http.Request) {
+	if !h.cfg.DevLogin {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
+		req.Email = "dev@localhost"
+	}
+
+	user, session, accessToken, err := h.auth.DevLogin(r.Context(), req.Email)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "dev login failed")
+		return
+	}
+
+	h.setAuthCookies(w, accessToken, session.RefreshToken, session.ExpiresAt)
+	h.logLogin(r, user.ID, "dev")
+	writeJSON(w, http.StatusOK, user)
+}
+
+// DevLoginStatus returns whether dev-login is enabled on this backend.
+func (h *AuthHandler) DevLoginStatus(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"enabled": h.cfg.DevLogin})
+}
+
 // backendOrigin returns the public origin of this backend server (e.g. "https://api.nowbind.com")
 func (h *AuthHandler) backendOrigin(r *http.Request) string {
 	scheme := "http"

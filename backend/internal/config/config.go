@@ -47,6 +47,9 @@ type Config struct {
 	R2SecretKey   string
 	R2BucketName  string
 	R2PublicURL   string
+
+	// Dev login – must be explicitly set to "true" to enable the dev-login endpoint
+	DevLogin bool
 }
 
 func Load() (*Config, error) {
@@ -84,6 +87,8 @@ func Load() (*Config, error) {
 		R2SecretKey:   getEnv("R2_SECRET_KEY", ""),
 		R2BucketName:  getEnv("R2_BUCKET_NAME", ""),
 		R2PublicURL:   getEnv("R2_PUBLIC_URL", ""),
+
+		DevLogin: getEnv("DEV_LOGIN", "") == "true",
 	}
 
 	// Auto-detect DB mode from hostname if not set

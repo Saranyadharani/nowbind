@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api";
 import { API_URL } from "@/lib/constants";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { Mail, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, ArrowRight, Loader2, Code } from "lucide-react";
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -52,9 +52,17 @@ function LoginContent() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [devLoading, setDevLoading] = useState(false);
+  const [devLoginAvailable, setDevLoginAvailable] = useState(false);
   const [error, setError] = useState(
     oauthError ? "Authentication failed. Please try again." : ""
   );
+
+  useEffect(() => {
+    api.get("/auth/dev-login/status")
+      .then((res: { enabled: boolean }) => setDevLoginAvailable(res.enabled))
+      .catch(() => setDevLoginAvailable(false));
+  }, []);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -109,6 +117,48 @@ function LoginContent() {
             Sign in to start writing
           </p>
         </div>
+
+        {devLoginAvailable && (
+          <>
+            <Button
+              variant="default"
+              className="w-full"
+              disabled={devLoading}
+              onClick={async () => {
+                setDevLoading(true);
+                setError("");
+                try {
+                  const res = await api.post("/auth/dev-login", { email: "dev@localhost" });
+                  if (res) {
+                    window.location.href = "/explore";
+                  }
+                } catch {
+                  setError("Dev login failed. Is the backend running?");
+                } finally {
+                  setDevLoading(false);
+                }
+              }}
+            >
+              {devLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Code className="mr-2 h-4 w-4" />
+              )}
+              Dev Login (no keys needed)
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  or use production auth
+                </span>
+              </div>
+            </div>
+          </>
+        )}
 
         {sent ? (
           <div className="rounded-lg border p-6 text-center">
