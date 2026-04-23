@@ -4,45 +4,31 @@ import { useCallback, useRef, useState } from "react";
 import { Play, Pause, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-const GEMINI_TTS_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${GEMINI_API_KEY}`;
-
 async function generateSpeech(text: string): Promise<AudioBuffer> {
-  const response = await fetch(GEMINI_TTS_URL, {
+  const response = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: "Aoede" },
-          },
-        },
-      },
-    }),
+    body: JSON.stringify({ text }),
   });
 
-  if (!response.ok) throw new Error(`Gemini TTS error: ${response.status}`);
+  if (!response.ok) throw new Error("TTS generation failed");
 
-  const data = await response.json();
-  const audioData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!audioData) throw new Error("No audio data in response");
+  const { audio } = await response.json();
+  if (!audio) throw new Error("No audio data returned");
 
-  // Decode base64 PCM audio
-  const binary = atob(audioData);
+  // Decode base64 PCM 16bit 24kHz mono
+  const binary = atob(audio);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-  // Gemini returns PCM 16bit 24kHz mono — wrap in AudioContext
-  const audioCtx = new AudioContext({ sampleRate: 24000 });
   const pcm = new Int16Array(bytes.buffer);
   const float32 = new Float32Array(pcm.length);
   for (let i = 0; i < pcm.length; i++) float32[i] = pcm[i] / 32768;
 
+  const audioCtx = new AudioContext({ sampleRate: 24000 });
   const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
   audioBuffer.copyToChannel(float32, 0);
+  await audioCtx.close();
   return audioBuffer;
 }
 
@@ -89,16 +75,18 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
     sourceRef.current = source;
 
     source.onended = () => {
-      setIsPlaying(false);
-      setIsPaused(false);
-      setShowUI(false);
-      pauseOffsetRef.current = 0;
+      // Only reset if not manually paused
+      if (!pauseOffsetRef.current) {
+        setIsPlaying(false);
+        setIsPaused(false);
+        setShowUI(false);
+      }
     };
   }, []);
 
   const handlePlay = useCallback(async () => {
     // Resume if paused
-    if (isPaused && audioCtxRef.current && audioBufferRef.current) {
+    if (isPaused && audioBufferRef.current) {
       playBuffer(audioBufferRef.current, pauseOffsetRef.current);
       setIsPaused(false);
       setIsPlaying(true);
@@ -107,9 +95,13 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
 
     // Pause if playing
     if (isPlaying && audioCtxRef.current) {
-      pauseOffsetRef.current = audioCtxRef.current.currentTime - startTimeRef.current;
+      const offset = audioCtxRef.current.currentTime - startTimeRef.current;
+      pauseOffsetRef.current = offset;
+      // Disconnect onended before stopping to prevent it firing
+      if (sourceRef.current) sourceRef.current.onended = null;
       sourceRef.current?.stop();
       await audioCtxRef.current.close();
+      audioCtxRef.current = null;
       setIsPaused(true);
       setIsPlaying(false);
       return;
@@ -122,11 +114,11 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
     setIsLoading(true);
     setError(null);
     setShowUI(true);
+    pauseOffsetRef.current = 0;
 
     try {
       const buffer = await generateSpeech(text);
       audioBufferRef.current = buffer;
-      pauseOffsetRef.current = 0;
       playBuffer(buffer, 0);
       setIsPlaying(true);
     } catch (err) {
@@ -139,8 +131,12 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
   }, [isPlaying, isPaused, collectText, playBuffer]);
 
   const handleStop = useCallback(async () => {
+    if (sourceRef.current) sourceRef.current.onended = null;
     sourceRef.current?.stop();
-    if (audioCtxRef.current) await audioCtxRef.current.close();
+    if (audioCtxRef.current) {
+      await audioCtxRef.current.close();
+      audioCtxRef.current = null;
+    }
     setIsPlaying(false);
     setIsPaused(false);
     setShowUI(false);
