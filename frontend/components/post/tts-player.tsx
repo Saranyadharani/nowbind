@@ -1,99 +1,67 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { Play, Pause, Square, Volume2, ChevronDown, ChevronUp } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { Play, Pause, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 
-const PREFERRED_VOICE_KEYWORDS = [
-  "google",
-  "neural",
-  "natural",
-  "premium",
-  "enhanced",
-  "microsoft",
-  "siri",
-];
+const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+const GEMINI_TTS_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${GEMINI_API_KEY}`;
 
-function pickBestVoice(voices: SpeechSynthesisVoice[], lang = "en"): SpeechSynthesisVoice | null {
-  const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(lang.toLowerCase()));
-  const pool = langVoices.length > 0 ? langVoices : voices;
-  const scored = pool.map((v) => {
-    let score = 0;
-    const name = v.name.toLowerCase();
-    PREFERRED_VOICE_KEYWORDS.forEach((kw, i) => {
-      if (name.includes(kw)) score += PREFERRED_VOICE_KEYWORDS.length - i;
-    });
-    if (!v.localService) score += 2;
-    return { voice: v, score };
+async function generateSpeech(text: string): Promise<AudioBuffer> {
+  const response = await fetch(GEMINI_TTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text }] }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: "Aoede" },
+          },
+        },
+      },
+    }),
   });
-  scored.sort((a, b) => b.score - a.score);
-  return scored[0]?.voice ?? null;
+
+  if (!response.ok) throw new Error(`Gemini TTS error: ${response.status}`);
+
+  const data = await response.json();
+  const audioData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!audioData) throw new Error("No audio data in response");
+
+  // Decode base64 PCM audio
+  const binary = atob(audioData);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  // Gemini returns PCM 16bit 24kHz mono — wrap in AudioContext
+  const audioCtx = new AudioContext({ sampleRate: 24000 });
+  const pcm = new Int16Array(bytes.buffer);
+  const float32 = new Float32Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) float32[i] = pcm[i] / 32768;
+
+  const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
+  audioBuffer.copyToChannel(float32, 0);
+  return audioBuffer;
 }
 
 export function TTSPlayer({ contentId = "article-content" }: { contentId?: string }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showUI, setShowUI] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [rate, setRate] = useState(1.0);
-  const [pitch, setPitch] = useState(1.0);
-  const [progress, setProgress] = useState(0);
-  const [elapsedWords, setElapsedWords] = useState(0);
-  const [totalWords, setTotalWords] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  // Refs so restart always uses latest values
-  const rateRef = useRef(1.0);
-  const pitchRef = useRef(1.0);
-  const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
-  const nodesRef = useRef<{ node: Node; text: string }[]>([]);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const totalCharsRef = useRef(0);
-  const totalWordsRef = useRef(0);
-  const isPlayingRef = useRef(false);
-
-  // Keep refs in sync
-  useEffect(() => { rateRef.current = rate; }, [rate]);
-  useEffect(() => { pitchRef.current = pitch; }, [pitch]);
-  useEffect(() => { selectedVoiceRef.current = selectedVoice; }, [selectedVoice]);
-  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
-  useEffect(() => { totalWordsRef.current = totalWords; }, [totalWords]);
-
-  // Load voices
-  useEffect(() => {
-    const load = () => {
-      const v = window.speechSynthesis.getVoices();
-      if (v.length > 0) {
-        setVoices(v);
-        setSelectedVoice((prev) => {
-          const best = prev ?? pickBestVoice(v);
-          selectedVoiceRef.current = best;
-          return best;
-        });
-      }
-    };
-    load();
-    window.speechSynthesis.onvoiceschanged = load;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      window.speechSynthesis.cancel();
-      removeHighlights();
-    };
-  }, []);
-
-  const removeHighlights = () => window.getSelection()?.removeAllRanges();
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const pauseOffsetRef = useRef(0);
+  const startTimeRef = useRef(0);
 
   const collectText = useCallback(() => {
     const container = document.getElementById(contentId);
     if (!container) return "";
-    nodesRef.current = [];
-    let rawText = "";
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) => {
         if (node.parentElement?.tagName.match(/^(SCRIPT|STYLE|PRE|CODE)$/i))
@@ -101,278 +69,140 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
         return NodeFilter.FILTER_ACCEPT;
       },
     });
+    let text = "";
     let node = walker.nextNode();
     while (node) {
-      if (node.textContent?.trim()) {
-        nodesRef.current.push({ node, text: node.textContent });
-        rawText += node.textContent;
-      }
+      if (node.textContent?.trim()) text += node.textContent;
       node = walker.nextNode();
     }
-    totalCharsRef.current = rawText.length;
-    const words = rawText.trim().split(/\s+/).length;
-    setTotalWords(words);
-    totalWordsRef.current = words;
-    return rawText;
+    return text.trim();
   }, [contentId]);
 
-  const handleBoundary = useCallback((e: SpeechSynthesisEvent) => {
-    if (e.name !== "word") return;
-    const pct = totalCharsRef.current > 0
-      ? Math.min(100, Math.round((e.charIndex / totalCharsRef.current) * 100))
-      : 0;
-    setProgress(pct);
-    setElapsedWords(Math.round((pct / 100) * totalWordsRef.current));
+  const playBuffer = useCallback((buffer: AudioBuffer, offset = 0) => {
+    const ctx = new AudioContext({ sampleRate: 24000 });
+    audioCtxRef.current = ctx;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0, offset);
+    startTimeRef.current = ctx.currentTime - offset;
+    sourceRef.current = source;
 
-    let charCount = 0;
-    for (const item of nodesRef.current) {
-      const nodeLen = item.text.length;
-      if (charCount + nodeLen > e.charIndex) {
-        const offset = e.charIndex - charCount;
-        let endOffset = offset;
-        while (endOffset < nodeLen && /\S/.test(item.text[endOffset])) endOffset++;
-        if (endOffset > offset) {
-          try {
-            const range = document.createRange();
-            range.setStart(item.node, offset);
-            range.setEnd(item.node, endOffset);
-            const sel = window.getSelection();
-            sel?.removeAllRanges();
-            sel?.addRange(range);
-            const el = item.node.parentElement;
-            if (el) {
-              const rect = el.getBoundingClientRect();
-              if (rect.top < 0 || rect.bottom > window.innerHeight)
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-          } catch { /* ignore */ }
-        }
-        break;
-      }
-      charCount += nodeLen;
-    }
-  }, []);
-
-  // Core speak function — always reads from refs so it has latest values
-  const speak = useCallback((text: string) => {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utteranceRef.current = utterance;
-
-    if (selectedVoiceRef.current) utterance.voice = selectedVoiceRef.current;
-    utterance.rate = rateRef.current;
-    utterance.pitch = pitchRef.current;
-    utterance.lang = selectedVoiceRef.current?.lang ?? "en-US";
-
-    utterance.onstart = () => { setIsPlaying(true); isPlayingRef.current = true; setIsPaused(false); };
-    utterance.onend = () => {
-      setIsPlaying(false); isPlayingRef.current = false;
-      setIsPaused(false); setProgress(100);
-      removeHighlights(); setShowUI(false); setProgress(0); setElapsedWords(0);
-    };
-    utterance.onpause = () => setIsPaused(true);
-    utterance.onresume = () => setIsPaused(false);
-    utterance.onboundary = handleBoundary;
-    utterance.onerror = (e) => {
-      if (e.error !== "canceled" && e.error !== "interrupted") {
-        console.warn("TTS error:", e.error);
-      }
-    };
-
-    window.speechSynthesis.speak(utterance);
-  }, [handleBoundary]);
-
-  const handlePlay = useCallback(() => {
-    if (isPlaying && isPaused) {
-      window.speechSynthesis.resume();
+    source.onended = () => {
+      setIsPlaying(false);
       setIsPaused(false);
-      return;
-    }
-    if (isPlaying) {
-      window.speechSynthesis.pause();
-      setIsPaused(true);
-      return;
-    }
-    const text = collectText();
-    if (!text.trim()) return;
-    speak(text);
-    setShowUI(true);
-  }, [isPlaying, isPaused, collectText, speak]);
-
-  const handleStop = useCallback(() => {
-    window.speechSynthesis.cancel();
-    setIsPlaying(false); isPlayingRef.current = false;
-    setIsPaused(false); setShowUI(false);
-    setProgress(0); setElapsedWords(0);
-    removeHighlights();
+      setShowUI(false);
+      pauseOffsetRef.current = 0;
+    };
   }, []);
 
-  // Restart with new rate — reads latest text from DOM
-  const handleRateChange = useCallback((v: number) => {
-    setRate(v);
-    rateRef.current = v;
-    if (isPlayingRef.current) {
-      const text = collectText();
-      if (text.trim()) speak(text);
+  const handlePlay = useCallback(async () => {
+    // Resume if paused
+    if (isPaused && audioCtxRef.current && audioBufferRef.current) {
+      playBuffer(audioBufferRef.current, pauseOffsetRef.current);
+      setIsPaused(false);
+      setIsPlaying(true);
+      return;
     }
-  }, [collectText, speak]);
 
-  // Restart with new pitch
-  const handlePitchChange = useCallback((v: number) => {
-    setPitch(v);
-    pitchRef.current = v;
-    if (isPlayingRef.current) {
-      const text = collectText();
-      if (text.trim()) speak(text);
+    // Pause if playing
+    if (isPlaying && audioCtxRef.current) {
+      pauseOffsetRef.current = audioCtxRef.current.currentTime - startTimeRef.current;
+      sourceRef.current?.stop();
+      await audioCtxRef.current.close();
+      setIsPaused(true);
+      setIsPlaying(false);
+      return;
     }
-  }, [collectText, speak]);
 
-  // Restart with new voice
-  const handleVoiceChange = useCallback((name: string) => {
-    const v = voices.find((v) => v.name === name) ?? null;
-    setSelectedVoice(v);
-    selectedVoiceRef.current = v;
-    if (isPlayingRef.current) {
-      const text = collectText();
-      if (text.trim()) speak(text);
+    // Fresh start
+    const text = collectText();
+    if (!text) return;
+
+    setIsLoading(true);
+    setError(null);
+    setShowUI(true);
+
+    try {
+      const buffer = await generateSpeech(text);
+      audioBufferRef.current = buffer;
+      pauseOffsetRef.current = 0;
+      playBuffer(buffer, 0);
+      setIsPlaying(true);
+    } catch (err) {
+      console.error("TTS error:", err);
+      setError("Failed to generate speech. Please try again.");
+      setShowUI(false);
+    } finally {
+      setIsLoading(false);
     }
-  }, [voices, collectText, speak]);
+  }, [isPlaying, isPaused, collectText, playBuffer]);
+
+  const handleStop = useCallback(async () => {
+    sourceRef.current?.stop();
+    if (audioCtxRef.current) await audioCtxRef.current.close();
+    setIsPlaying(false);
+    setIsPaused(false);
+    setShowUI(false);
+    pauseOffsetRef.current = 0;
+    audioBufferRef.current = null;
+  }, []);
 
   if (!showUI) {
     return (
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="text-muted-foreground"
-        onClick={handlePlay}
-        title="Listen to article"
-      >
-        <Play className="h-4 w-4" />
-        <span className="sr-only">Listen to article</span>
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-muted-foreground"
+          onClick={handlePlay}
+          disabled={isLoading}
+          title="Listen to article"
+        >
+          {isLoading ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+          <span className="sr-only">Listen to article</span>
+        </Button>
+        {error && <span className="text-xs text-destructive">{error}</span>}
+      </div>
     );
   }
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5 w-[min(480px,90vw)]">
-      <div className="bg-background/95 backdrop-blur shadow-lg border rounded-2xl px-5 py-3 flex flex-col gap-3">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
+      <div className="bg-background/95 backdrop-blur shadow-lg border rounded-full px-6 py-3 flex items-center gap-4">
+        <Button
+          variant="default"
+          size="icon"
+          className="rounded-full h-10 w-10 shrink-0"
+          onClick={handlePlay}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          ) : isPlaying && !isPaused ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            <Play className="h-4 w-4 ml-0.5" />
+          )}
+        </Button>
 
-        {/* Progress bar */}
-        <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
-          <div
-            className="bg-primary h-full rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <span className="text-sm text-muted-foreground min-w-[80px]">
+          {isLoading ? "Generating..." : isPlaying && !isPaused ? "Playing..." : "Paused"}
+        </span>
 
-        {/* Controls */}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="default"
-            size="icon"
-            className="rounded-full h-10 w-10 shrink-0"
-            onClick={handlePlay}
-          >
-            {isPlaying && !isPaused ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4 ml-0.5" />
-            )}
-          </Button>
-
-          <div className="flex flex-col flex-1 min-w-0">
-            <span className="text-sm font-medium leading-tight truncate">
-              {selectedVoice?.name ?? "Default Voice"}
-            </span>
-            <span className="text-xs text-muted-foreground mt-0.5">
-              {isPlaying && !isPaused
-                ? `${elapsedWords} / ${totalWords} words`
-                : isPaused ? "Paused" : "Ready"}
-            </span>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground"
-            onClick={() => setShowSettings((s) => !s)}
-            title="Voice settings"
-          >
-            {showSettings ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={handleStop}
-            title="Stop"
-          >
-            <Square className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Settings panel */}
-        {showSettings && (
-          <div className="border-t pt-3 flex flex-col gap-3">
-
-            {/* Voice selector */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                <Volume2 className="h-3 w-3" /> Voice
-              </label>
-              <select
-                className="text-sm bg-muted border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                value={selectedVoice?.name ?? ""}
-                onChange={(e) => handleVoiceChange(e.target.value)}
-              >
-                {voices
-                  .filter((v) => v.lang.startsWith("en"))
-                  .map((v) => (
-                    <option key={v.name} value={v.name}>
-                      {v.name} ({v.lang})
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            {/* Speed */}
-            <div className="flex flex-col gap-1">
-              <div className="flex justify-between items-center">
-                <label className="text-xs text-muted-foreground font-medium">Speed</label>
-                <span className="text-xs text-muted-foreground">{rate.toFixed(1)}×</span>
-              </div>
-              <Slider
-                min={0.5}
-                max={2}
-                step={0.1}
-                value={[rate]}
-                onValueChange={([v]) => handleRateChange(v)}
-                className="w-full"
-              />
-            </div>
-
-            {/* Pitch */}
-            <div className="flex flex-col gap-1">
-              <div className="flex justify-between items-center">
-                <label className="text-xs text-muted-foreground font-medium">Pitch</label>
-                <span className="text-xs text-muted-foreground">{pitch.toFixed(1)}</span>
-              </div>
-              <Slider
-                min={0.5}
-                max={2}
-                step={0.1}
-                value={[pitch]}
-                onValueChange={([v]) => handlePitchChange(v)}
-                className="w-full"
-              />
-            </div>
-
-            <p className="text-[10px] text-muted-foreground">
-              Tip: Speed, pitch and voice changes apply instantly. Google/Microsoft voices sound most natural.
-            </p>
-          </div>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          onClick={handleStop}
+          title="Stop"
+        >
+          <Square className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
