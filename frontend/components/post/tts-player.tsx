@@ -1,15 +1,34 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { Play, Pause, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-async function generateSpeech(text: string): Promise<AudioBuffer> {
+// Abort controller for cancelling pending requests
+let currentRequestId = 0;
+let abortController: AbortController | null = null;
+
+async function generateSpeech(text: string, requestId: number): Promise<AudioBuffer | null> {
+  // Cancel any pending request
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
+  }
+
+  const controller = new AbortController();
+  abortController = controller;
+
   const response = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
+    signal: controller.signal,
   });
+
+  // Check if this request was superseded
+  if (currentRequestId !== requestId) {
+    return null;
+  }
 
   if (!response.ok) throw new Error("TTS generation failed");
 
@@ -45,6 +64,22 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
   const pauseOffsetRef = useRef(0);
   const startTimeRef = useRef(0);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortController) {
+        abortController.abort();
+      }
+      if (sourceRef.current) {
+        sourceRef.current.onended = null;
+        sourceRef.current.stop();
+      }
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close();
+      }
+    };
+  }, []);
+
   const collectText = useCallback(() => {
     const container = document.getElementById(contentId);
     if (!container) return "";
@@ -75,18 +110,20 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
     sourceRef.current = source;
 
     source.onended = () => {
-      // Only reset if not manually paused
-      if (!pauseOffsetRef.current) {
+      // Only reset if not paused (natural end)
+      if (pauseOffsetRef.current === 0) {
         setIsPlaying(false);
         setIsPaused(false);
         setShowUI(false);
+        audioBufferRef.current = null;
       }
+      pauseOffsetRef.current = 0;
     };
   }, []);
 
   const handlePlay = useCallback(async () => {
     // Resume if paused
-    if (isPaused && audioBufferRef.current) {
+    if (isPaused && audioBufferRef.current && pauseOffsetRef.current > 0) {
       playBuffer(audioBufferRef.current, pauseOffsetRef.current);
       setIsPaused(false);
       setIsPlaying(true);
@@ -94,14 +131,15 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
     }
 
     // Pause if playing
-    if (isPlaying && audioCtxRef.current) {
+    if (isPlaying && audioCtxRef.current && sourceRef.current) {
       const offset = audioCtxRef.current.currentTime - startTimeRef.current;
       pauseOffsetRef.current = offset;
-      // Disconnect onended before stopping to prevent it firing
+      // Nullify onended before stopping to prevent it firing
       if (sourceRef.current) sourceRef.current.onended = null;
-      sourceRef.current?.stop();
+      sourceRef.current.stop();
       await audioCtxRef.current.close();
       audioCtxRef.current = null;
+      sourceRef.current = null;
       setIsPaused(true);
       setIsPlaying(false);
       return;
@@ -116,23 +154,42 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
     setShowUI(true);
     pauseOffsetRef.current = 0;
 
+    const requestId = ++currentRequestId;
+    
     try {
-      const buffer = await generateSpeech(text);
-      audioBufferRef.current = buffer;
-      playBuffer(buffer, 0);
-      setIsPlaying(true);
+      const buffer = await generateSpeech(text, requestId);
+      if (buffer && requestId === currentRequestId) {
+        audioBufferRef.current = buffer;
+        playBuffer(buffer, 0);
+        setIsPlaying(true);
+      }
     } catch (err) {
-      console.error("TTS error:", err);
-      setError("Failed to generate speech. Please try again.");
-      setShowUI(false);
+      if ((err as Error).name !== 'AbortError') {
+        console.error("TTS error:", err);
+        setError("Failed to generate speech. Please try again.");
+        setShowUI(false);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === currentRequestId) {
+        setIsLoading(false);
+      }
     }
   }, [isPlaying, isPaused, collectText, playBuffer]);
 
   const handleStop = useCallback(async () => {
-    if (sourceRef.current) sourceRef.current.onended = null;
-    sourceRef.current?.stop();
+    // Cancel pending generation
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+      currentRequestId++;
+    }
+    
+    // Stop playback
+    if (sourceRef.current) {
+      sourceRef.current.onended = null;
+      sourceRef.current.stop();
+      sourceRef.current = null;
+    }
     if (audioCtxRef.current) {
       await audioCtxRef.current.close();
       audioCtxRef.current = null;
@@ -142,6 +199,7 @@ export function TTSPlayer({ contentId = "article-content" }: { contentId?: strin
     setShowUI(false);
     pauseOffsetRef.current = 0;
     audioBufferRef.current = null;
+    setIsLoading(false);
   }, []);
 
   if (!showUI) {
